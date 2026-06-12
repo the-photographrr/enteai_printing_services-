@@ -1,0 +1,786 @@
+'use client';
+
+import React, { useState, useEffect, use } from 'react';
+import { useApp } from '../../AppContext';
+import {
+  Sun, Moon, Check, AlertCircle, ChevronRight, ChevronLeft,
+  Heart, ShoppingBag, X, Menu,
+} from 'lucide-react';
+import Link from 'next/link';
+
+const R2_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
+
+
+const COLORS = [
+  { name: 'Red',    hex: '#ef4444' },
+  { name: 'Yellow', hex: '#eab308' },
+  { name: 'White',  hex: '#ffffff' },
+  { name: 'Black',  hex: '#1a1a1a' },
+  { name: 'Orange', hex: '#f97316' },
+  { name: 'Green',  hex: '#22c55e' },
+];
+
+
+export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { user, login, register, logout, theme, toggleTheme, apiFetch, refreshUser } = useApp();
+
+  const [product, setProduct] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [quantity, setQuantity] = useState(1);
+  const [activeThumbnailIdx, setActiveThumbnailIdx] = useState(0);
+
+  // Checkout modal states
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [checkoutAddress, setCheckoutAddress] = useState('');
+  const [saveAddressToProfile, setSaveAddressToProfile] = useState(true);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderError, setOrderError] = useState('');
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+
+  // Auth modal states
+  const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'customer' | 'staff'>('customer');
+  const [authError, setAuthError] = useState('');
+
+  // Reassurance block data
+  const reassuranceData = [
+    {
+      title: 'Free Shipping',
+      desc: 'Free shipping on all Prepaid Orders',
+      icon: (
+        <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      )
+    },
+    {
+      title: 'Secure Payments',
+      desc: 'Pay via UPI, Cards, Wallets, EMI & Net Banking',
+      icon: (
+        <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      )
+    },
+    {
+      title: '7-Day Easy Returns',
+      desc: 'Shop with confidence',
+      icon: (
+        <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3 3L22 4" />
+        </svg>
+      )
+    }
+  ];
+
+  useEffect(() => {
+    fetchProductDetail();
+  }, [id]);
+
+  const fetchProductDetail = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/products/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProduct(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch product details', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    if (authModal === 'login') {
+      const success = await login(username, password);
+      if (success) {
+        setAuthModal(null);
+        setUsername('');
+        setPassword('');
+      } else {
+        setAuthError('Invalid username or password.');
+      }
+    } else {
+      const success = await register({ username, password, email, phone, role });
+      if (success) {
+        const loggedIn = await login(username, password);
+        if (loggedIn) {
+          setAuthModal(null);
+          setUsername('');
+          setPassword('');
+          setEmail('');
+          setPhone('');
+        }
+      } else {
+        setAuthError('Registration failed. Username might be taken.');
+      }
+    }
+  };
+
+  const handleOpenCheckout = () => {
+    if (!user) {
+      setAuthModal('login');
+      return;
+    }
+    setCheckoutAddress(user.address || '');
+    setCheckoutModalOpen(true);
+    setOrderSuccess(false);
+    setOrderError('');
+  };
+
+  const handleSubmitCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !product) return;
+
+    if (!checkoutAddress.trim()) {
+      setOrderError('Delivery address is required.');
+      return;
+    }
+
+    setSubmittingOrder(true);
+    setOrderError('');
+    setOrderSuccess(false);
+
+    try {
+      if (saveAddressToProfile && checkoutAddress !== user.address) {
+        await apiFetch('/auth/profile/', {
+          method: 'PATCH',
+          body: JSON.stringify({ address: checkoutAddress })
+        });
+        await refreshUser();
+      }
+
+      const payload = {
+        product: product.id,
+        quantity: quantity,
+        shipping_address: checkoutAddress
+      };
+
+      const res = await apiFetch('/orders/', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setOrderSuccess(true);
+        setTimeout(() => {
+          setOrderSuccess(false);
+          setCheckoutModalOpen(false);
+        }, 2000);
+      } else {
+        const errorData = await res.json();
+        setOrderError(errorData.detail || 'Failed to place order.');
+      }
+    } catch (err) {
+      console.error(err);
+      setOrderError('Network error placing order.');
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  // Get CSS filter styling for dynamic color shifting
+  const getColorFilterStyle = (colorName: string): React.CSSProperties => {
+    switch (colorName.toLowerCase()) {
+      case 'red':
+        return { filter: 'none' };
+      case 'yellow':
+        return { filter: 'hue-rotate(60deg) saturate(1.8) contrast(1.1)' };
+      case 'white':
+        return { filter: 'grayscale(1) brightness(1.75) contrast(0.8)' };
+      case 'black':
+        return { filter: 'grayscale(1) brightness(0.25) contrast(1.2)' };
+      case 'orange':
+        return { filter: 'hue-rotate(30deg) saturate(1.8) contrast(1.1)' };
+      case 'green':
+        return { filter: 'hue-rotate(120deg) saturate(1.6) contrast(1.1)' };
+      default:
+        return {};
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <div className="w-8 h-8 rounded-full border-2 border-foreground border-t-transparent animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4">
+        <h1 className="text-xl font-bold uppercase tracking-widest mb-4">Product Not Found</h1>
+        <Link href="/" className="px-6 py-2.5 bg-foreground text-background text-xs font-mono uppercase rounded">
+          Return to Catalog
+        </Link>
+      </div>
+    );
+  }
+
+  const imageUrl = product.image
+    ? (product.image.startsWith('http') ? product.image : `${R2_BASE}${product.image}`)
+    : '';
+
+  // Generate mock thumbnails: main image, angle, and a few color-shifted previews
+  const galleryThumbnails = [
+    { name: 'Red View', filter: getColorFilterStyle('red') },
+    { name: 'Side View', filter: { ...getColorFilterStyle('red'), transform: 'scaleX(-1)' } },
+    { name: 'Yellow View', filter: getColorFilterStyle('yellow') },
+    { name: 'White View', filter: getColorFilterStyle('white') },
+    { name: 'Orange View', filter: getColorFilterStyle('orange') },
+    { name: 'Green View', filter: getColorFilterStyle('green') }
+  ];
+
+  return (
+    <div className="min-h-screen flex flex-col font-sans transition-colors duration-300">
+      
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 glass border-b border-border transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="text-lg font-bold tracking-widest font-mono uppercase text-foreground">
+              ENTE.PrintLabs
+            </Link>
+            <nav className="hidden md:flex items-center gap-6 text-sm">
+              <Link href="/#catalog" className="text-text-secondary hover:text-foreground transition-colors font-mono">Catalog</Link>
+              <a href="/#custom-print" className="text-text-secondary hover:text-foreground transition-colors font-mono">Custom Print</a>
+              {user && (
+                <Link href="/dashboard" className="text-text-secondary hover:text-foreground transition-colors font-mono">
+                  Dashboard
+                </Link>
+              )}
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={toggleTheme} 
+              className="p-2 rounded-full border border-border hover:bg-card text-foreground transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+
+            {user ? (
+              <div className="hidden md:flex items-center gap-4">
+                <span className="text-xs font-mono text-text-secondary">[{user.role.toUpperCase()}] {user.username}</span>
+                <Link href="/dashboard" className="px-4 py-2 text-xs font-mono border border-border hover:border-foreground rounded bg-foreground text-background transition-all">
+                  DASHBOARD
+                </Link>
+                <button onClick={logout} className="text-xs font-mono text-red-500 hover:underline">
+                  LOGOUT
+                </button>
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center gap-2">
+                <button onClick={() => setAuthModal('login')} className="px-4 py-2 text-xs font-mono border border-border hover:border-foreground rounded transition-colors">
+                  LOGIN
+                </button>
+                <button onClick={() => setAuthModal('register')} className="px-4 py-2 text-xs font-mono bg-foreground text-background rounded hover:opacity-90 transition-opacity">
+                  REGISTER
+                </button>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 md:hidden rounded border border-border text-foreground"
+            >
+              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden glass border-b border-border py-4 px-6 flex flex-col gap-4">
+          <Link href="/#catalog" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Catalog</Link>
+          <a href="/#custom-print" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Custom Print</a>
+          {user ? (
+            <>
+              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Dashboard</Link>
+              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="text-sm font-mono text-red-500 text-left">
+                LOGOUT
+              </button>
+            </>
+          ) : (
+            <div className="flex gap-2 pt-2 border-t border-border">
+              <button onClick={() => { setAuthModal('login'); setMobileMenuOpen(false); }} className="px-4 py-2 text-xs font-mono border border-border rounded">
+                LOGIN
+              </button>
+              <button onClick={() => { setAuthModal('register'); setMobileMenuOpen(false); }} className="px-4 py-2 text-xs font-mono bg-foreground text-background rounded">
+                REGISTER
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {/* Main product area */}
+      <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-[10px] font-mono text-text-secondary uppercase tracking-widest mb-8">
+          <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
+          <span>/</span>
+          <Link href="/#catalog" className="hover:text-foreground transition-colors">Catalog</Link>
+          <span>/</span>
+          <span className="text-foreground truncate max-w-[180px]">{product.title}</span>
+        </nav>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          
+          {/* Left Column: Product Gallery */}
+          <div className="lg:col-span-8 flex flex-col-reverse md:flex-row gap-4">
+            
+            {/* Gallery Thumbnail Bar - positioned next to image */}
+            <div className="flex flex-row md:flex-col gap-3 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0 select-none justify-start">
+              {galleryThumbnails.map((thumb, idx) => {
+                const isActive = activeThumbnailIdx === idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setActiveThumbnailIdx(idx);
+                      // Update selected color swatch matching thumbnail name prefix
+                      if (thumb.name.startsWith('Yellow')) setSelectedColor(COLORS[1]);
+                      else if (thumb.name.startsWith('White')) setSelectedColor(COLORS[2]);
+                      else if (thumb.name.startsWith('Black')) setSelectedColor(COLORS[3]);
+                      else if (thumb.name.startsWith('Orange')) setSelectedColor(COLORS[4]);
+                      else if (thumb.name.startsWith('Green')) setSelectedColor(COLORS[5]);
+                      else setSelectedColor(COLORS[0]);
+                    }}
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 flex-shrink-0 bg-neutral-50 dark:bg-[#111111] overflow-hidden p-1 transition-all ${
+                      isActive ? 'border-foreground scale-105 shadow-sm' : 'border-border hover:border-text-secondary'
+                    }`}
+                  >
+                    <img 
+                      src={imageUrl} 
+                      alt={`Thumbnail ${idx}`} 
+                      className="w-full h-full object-contain"
+                      style={thumb.filter}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Main Image Slider Screen */}
+            <div className="flex-grow relative aspect-square rounded-3xl border border-border bg-neutral-50 dark:bg-[#0c0c0c] overflow-hidden flex items-center justify-center group shadow-sm">
+              <img 
+                src={imageUrl} 
+                alt={product.title} 
+                className="w-[85%] h-[85%] object-contain product-image-transition"
+                style={{
+                  ...getColorFilterStyle(selectedColor.name),
+                  transform: activeThumbnailIdx === 1 ? 'scaleX(-1)' : 'none'
+                }}
+              />
+              
+              {/* Carousel Arrows */}
+              <button 
+                onClick={() => {
+                  setActiveThumbnailIdx(prev => (prev === 0 ? galleryThumbnails.length - 1 : prev - 1));
+                }}
+                className="absolute left-4 w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 border border-border/10 cursor-pointer"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setActiveThumbnailIdx(prev => (prev === galleryThumbnails.length - 1 ? 0 : prev + 1));
+                }}
+                className="absolute right-4 w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 border border-border/10 cursor-pointer"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              {/* Heart Button Overlay */}
+              <button className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center text-foreground border border-border/10 hover:scale-105 transition-all">
+                <Heart size={18} className="text-foreground/80 hover:text-red-500 hover:fill-red-500 transition-all" />
+              </button>
+            </div>
+
+          </div>
+
+          {/* Right Column: Product details */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Category pill + title */}
+            <div className="space-y-3">
+              <span className="inline-block text-[10px] uppercase font-bold tracking-widest text-foreground bg-foreground/8 dark:bg-foreground/10 px-3 py-1 rounded-full border border-border">
+                {product.category}
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground leading-tight tracking-tight">
+                {product.title}
+              </h1>
+            </div>
+
+            {/* Price */}
+            <div className="py-4 border-t border-b border-border">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-foreground tracking-tight">
+                  ₹{product.rate ? parseFloat(product.rate).toFixed(2) : '0.00'}
+                </span>
+                <span className="text-[10px] text-text-secondary font-mono uppercase">incl. taxes</span>
+              </div>
+            </div>
+
+            {/* Color swatches */}
+            <div className="space-y-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary font-mono">
+                Color — <span className="text-foreground">{selectedColor.name}</span>
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {COLORS.map((color) => {
+                  const isSelected = selectedColor.name === color.name;
+                  return (
+                    <button
+                      key={color.name}
+                      onClick={() => {
+                        setSelectedColor(color);
+                        const matchIdx = galleryThumbnails.findIndex(t => t.name.startsWith(color.name));
+                        setActiveThumbnailIdx(matchIdx !== -1 ? matchIdx : 0);
+                      }}
+                      title={color.name}
+                      className={`w-8 h-8 rounded-full transition-all border-2 flex items-center justify-center ${
+                        isSelected
+                          ? 'border-foreground ring-2 ring-foreground/25 ring-offset-2 ring-offset-background scale-110'
+                          : 'border-border/60 hover:scale-105 hover:border-foreground/40'
+                      }`}
+                      style={{ backgroundColor: color.hex }}
+                    >
+                      {isSelected && (
+                        <Check size={12} className={color.name === 'White' ? 'text-black' : 'text-white'} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quantity + CTA */}
+            <div className="space-y-3 pt-2">
+              <div className="flex gap-3">
+                {/* Quantity stepper */}
+                <div className="flex border border-border rounded-xl overflow-hidden bg-card shrink-0 h-11">
+                  <button
+                    onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                    className="px-4 font-bold text-foreground hover:bg-foreground/5 text-sm transition-colors"
+                  >−</button>
+                  <span className="w-12 flex items-center justify-center font-bold text-foreground text-sm select-none border-x border-border">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => setQuantity(prev => prev + 1)}
+                    className="px-4 font-bold text-foreground hover:bg-foreground/5 text-sm transition-colors"
+                  >+</button>
+                </div>
+                {/* Add to cart */}
+                <button
+                  onClick={handleOpenCheckout}
+                  className="flex-grow h-11 bg-foreground/8 dark:bg-foreground/10 text-foreground border border-border text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-foreground/15 active:scale-[.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag size={14} /> Add to Cart
+                </button>
+              </div>
+              {/* Buy now — primary CTA */}
+              <button
+                onClick={handleOpenCheckout}
+                className="w-full h-12 bg-foreground text-background text-xs font-black tracking-widest uppercase rounded-xl hover:opacity-90 active:scale-[.98] transition-all shadow-sm"
+              >
+                Buy it Now
+              </button>
+            </div>
+
+            {/* Specs */}
+            <div className="pt-4 border-t border-border space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary font-mono">Print Specifications</p>
+              <div className="rounded-xl border border-border overflow-hidden font-mono text-[11px]">
+                {[
+                  ['Material Build', `${selectedColor.name} — Industrial FDM`],
+                  ['Layer Resolution', '0.15 mm · High Precision'],
+                  ['Standard Infill',  '25% Gyroid'],
+                ].map(([label, value], i, arr) => (
+                  <div key={label} className={`flex justify-between items-center px-4 py-3 ${
+                    i < arr.length - 1 ? 'border-b border-border' : ''
+                  } bg-card`}>
+                    <span className="text-text-secondary uppercase tracking-wide">{label}</span>
+                    <span className="text-foreground font-bold text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+              {product.description && (
+                <p className="text-[11px] text-text-secondary font-mono leading-relaxed pt-1">
+                  {product.description}
+                </p>
+              )}
+            </div>
+
+          </div>
+        </div>
+
+
+        {/* Reassurance Block */}
+        <section className="mt-12 pt-10 border-t border-border grid grid-cols-1 md:grid-cols-3 gap-4">
+          {reassuranceData.map((item, idx) => (
+            <div
+              key={idx}
+              className="border border-border rounded-2xl p-5 bg-card flex items-center gap-4 transition-all hover:shadow-sm hover:border-foreground/20"
+            >
+              <div className="w-9 h-9 rounded-lg bg-foreground/5 dark:bg-foreground/10 border border-border flex items-center justify-center shrink-0">
+                {item.icon}
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-[11px] font-bold text-foreground uppercase tracking-wide font-mono">{item.title}</h3>
+                <p className="text-[10px] text-text-secondary font-mono leading-snug">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+
+      </main>
+
+      {/* Footer */}
+      <footer className="mt-auto border-t border-border bg-card py-10 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-mono text-text-secondary">
+          <span>&copy; {new Date().getFullYear()} ENTE.PrintLabs. All rights reserved.</span>
+          <div className="flex gap-6">
+            <Link href="/#catalog" className="hover:text-foreground transition-colors">Catalog</Link>
+            <a href="/#custom-print" className="hover:text-foreground transition-colors">Custom Print</a>
+            <a href="mailto:hello@enteprintlabs.com" className="hover:text-foreground transition-colors">Contact</a>
+          </div>
+        </div>
+      </footer>
+
+      {/* Auth Modal Overlay */}
+      {authModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm border border-border rounded-xl bg-card p-6 relative">
+            <button 
+              onClick={() => setAuthModal(null)}
+              className="absolute top-4 right-4 p-1 rounded-full border border-border hover:bg-background text-foreground transition-colors"
+            >
+              <X size={14} />
+            </button>
+            <h3 className="text-lg font-bold font-mono text-foreground uppercase mb-6">
+              {authModal === 'login' ? 'Login' : 'Register'}
+            </h3>
+            
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Username</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username"
+                  className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
+                />
+              </div>
+
+              {authModal === 'register' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Email</label>
+                    <input 
+                      type="email" 
+                      required 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Phone</label>
+                    <input 
+                      type="text" 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Role Type</label>
+                    <select 
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
+                    >
+                      <option value="customer">Customer</option>
+                      <option value="staff">Production Staff</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Password</label>
+                <input 
+                  type="password" 
+                  required 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="password"
+                  className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
+                />
+              </div>
+
+              {authError && (
+                <div className="p-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono rounded">
+                  {authError}
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                className="w-full py-2 bg-foreground text-background text-xs font-mono tracking-widest uppercase rounded hover:opacity-90 transition-opacity"
+              >
+                {authModal === 'login' ? 'Login' : 'Create Account'}
+              </button>
+            </form>
+
+            <div className="mt-4 pt-4 border-t border-border text-center">
+              {authModal === 'login' ? (
+                <p className="text-[10px] font-mono text-text-secondary">
+                  Don't have an account?{' '}
+                  <button onClick={() => { setAuthModal('register'); setAuthError(''); }} className="text-foreground underline">
+                    Register
+                  </button>
+                </p>
+              ) : (
+                <p className="text-[10px] font-mono text-text-secondary">
+                  Already have an account?{' '}
+                  <button onClick={() => { setAuthModal('login'); setAuthError(''); }} className="text-foreground underline">
+                    Login
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Catalog Order Modal */}
+      {checkoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm border border-border rounded-xl bg-card p-6 relative font-mono text-xs">
+            <button 
+              onClick={() => setCheckoutModalOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-full border border-border hover:bg-background text-foreground transition-colors cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+            <h3 className="text-[10px] text-accent uppercase tracking-widest mb-1">Direct Checkout</h3>
+            <h4 className="text-sm font-bold text-foreground uppercase mb-4">{product.title}</h4>
+            
+            <form onSubmit={handleSubmitCheckout} className="space-y-4">
+              <div className="flex justify-between items-center bg-background/50 border border-border p-3 rounded-lg">
+                <span className="text-text-secondary">Selected Color:</span>
+                <span className="font-bold text-foreground uppercase">{selectedColor.name}</span>
+              </div>
+
+              <div className="flex justify-between items-center bg-background/50 border border-border p-3 rounded-lg">
+                <span className="text-text-secondary">Unit Rate:</span>
+                <span className="font-bold text-foreground">₹ {parseFloat(product.rate || '0').toFixed(2)}</span>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-text-secondary uppercase mb-1">Quantity</label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-8 h-8 rounded border border-border flex items-center justify-center text-foreground hover:bg-background/80 active:scale-95 transition-all text-sm font-bold"
+                  >
+                    -
+                  </button>
+                  <span className="text-sm font-bold w-12 text-center">{quantity}</span>
+                  <button 
+                    type="button"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-8 h-8 rounded border border-border flex items-center justify-center text-foreground hover:bg-background/80 active:scale-95 transition-all text-sm font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Shipping Address */}
+              <div>
+                <label className="block text-[10px] text-text-secondary uppercase mb-1">Shipping Address</label>
+                <textarea 
+                  required 
+                  rows={3}
+                  value={checkoutAddress}
+                  onChange={(e) => setCheckoutAddress(e.target.value)}
+                  placeholder="Enter complete delivery address"
+                  className="w-full px-3 py-2 bg-background border border-border rounded text-xs text-foreground focus:outline-none focus:border-foreground leading-relaxed"
+                />
+                
+                {/* Save address option */}
+                <div className="flex items-center gap-2 mt-2">
+                  <input 
+                    type="checkbox" 
+                    id="save_address_chk"
+                    checked={saveAddressToProfile}
+                    onChange={(e) => setSaveAddressToProfile(e.target.checked)}
+                    className="accent-foreground w-3 h-3 rounded"
+                  />
+                  <label htmlFor="save_address_chk" className="text-[9px] text-text-secondary uppercase cursor-pointer">
+                    Save address to profile
+                  </label>
+                </div>
+              </div>
+
+              {/* Total Summary */}
+              <div className="flex justify-between items-center border-t border-border pt-3 font-sans">
+                <span className="text-text-secondary uppercase font-bold text-[10px] font-mono">Total Price:</span>
+                <span className="text-lg font-black text-foreground">
+                  ₹ {parseFloat(String((product.rate || 0) * quantity)).toFixed(2)}
+                </span>
+              </div>
+
+              {orderSuccess && (
+                <div className="p-2.5 bg-green-500/10 border border-green-500/20 text-green-500 text-[9px] font-bold uppercase rounded flex items-center gap-2">
+                  <Check size={12} className="text-green-500" /> Order placed successfully!
+                </div>
+              )}
+
+              {orderError && (
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-bold uppercase rounded flex items-center gap-2">
+                  <AlertCircle size={12} className="text-red-500" /> {orderError}
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={submittingOrder}
+                className="w-full py-2.5 bg-foreground text-background text-xs font-bold tracking-widest uppercase rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              >
+                {submittingOrder ? 'Placing Order...' : 'Confirm Order'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

@@ -1,0 +1,23 @@
+name = "enteprintlabs"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+# ─── D1 Database ─────────────────────────────────────────────────────────────
+# Create with: npx wrangler d1 create enteprintlabs-db
+# Then replace database_id below with the ID printed by that command.
+[[d1_databases]]
+binding = "DB"
+database_name = "enteprintlabs-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+# ─── R2 Bucket ───────────────────────────────────────────────────────────────
+# Create with: npx wrangler r2 bucket create enteprintlabs-media
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "enteprintlabs-media"
+
+# ─── Environment Variables ────────────────────────────────────────────────────
+# Set SECRET in Cloudflare Pages dashboard → Settings → Environment Variables
+[vars]
+NODE_ENV = "production"
