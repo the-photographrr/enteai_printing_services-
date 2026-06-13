@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from './AppContext';
 import STLViewer from '../components/STLViewer';
 import {
@@ -13,6 +13,25 @@ import Link from 'next/link';
 const R2_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
 
 
+
+interface CatalogProduct {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  rate: string | number;
+  image?: string;
+  status: string;
+}
+
+interface DbMaterial {
+  id: number;
+  type: string;
+  color: string;
+  available_stock: number;
+  reorder_level: number;
+  brand?: string;
+}
 
 export default function Home() {
   const { user, login, register, logout, theme, toggleTheme, apiFetch, refreshUser } = useApp();
@@ -33,7 +52,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
   // Catalog Order states
-  const [orderProduct, setOrderProduct] = useState<any | null>(null);
+  const [orderProduct, setOrderProduct] = useState<CatalogProduct | null>(null);
 
   // Form states
   const [username, setUsername] = useState('');
@@ -44,7 +63,7 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
 
   // Catalog Products state
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   // Custom Request Form states
@@ -65,7 +84,7 @@ export default function Home() {
   const [rotationX, setRotationX] = useState(0);
   const [rotationY, setRotationY] = useState(0);
   const [selectedColorHex, setSelectedColorHex] = useState('#6b7280');
-  const [dbMaterials, setDbMaterials] = useState<any[]>([]);
+  const [dbMaterials, setDbMaterials] = useState<DbMaterial[]>([]);
   const [baseX, setBaseX] = useState(2.000);
   const [baseY, setBaseY] = useState(2.000);
   const [baseZ, setBaseZ] = useState(2.000);
@@ -78,13 +97,47 @@ export default function Home() {
   const [orderError, setOrderError] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  // Load products & materials
-  useEffect(() => {
-    fetchProducts();
-    fetchMaterials();
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products', err);
+    } finally {
+      setLoadingProducts(false);
+    }
   }, []);
 
-  const getColorHex = (colorName: string): string => {
+  const fetchMaterials = useCallback(async () => {
+    try {
+      const res = await fetch('/api/materials');
+      if (res.ok) {
+        const data = await res.json();
+        setDbMaterials(data);
+        const firstInStock = data.find((m: DbMaterial) => m.available_stock > 0);
+        if (firstInStock) {
+          setMaterialPref(firstInStock.type);
+          setColorPref(firstInStock.color);
+          setSelectedColorHex(getColorHex(firstInStock.color));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch materials', err);
+    }
+  }, []);
+
+  // Load products & materials
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      fetchProducts();
+      fetchMaterials();
+    });
+  }, [fetchProducts, fetchMaterials]);
+
+  function getColorHex(colorName: string): string {
     if (!colorName) return '#6b7280';
     if (colorName.startsWith('#')) return colorName;
     const colors: Record<string, string> = {
@@ -103,7 +156,7 @@ export default function Home() {
       'clear': '#e2e8f0'
     };
     return colors[colorName.toLowerCase()] || '#6b7280';
-  };
+  }
 
   /** Resets STL-related state back to defaults. */
   const resetStl = () => {
@@ -113,38 +166,6 @@ export default function Home() {
     setBaseZ(2.0);
     setScalePercent(100);
     setDimensions('2.000 x 2.000 x 2.000 cm');
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch('/api/products');
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch products', err);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
-  const fetchMaterials = async () => {
-    try {
-      const res = await fetch('/api/materials');
-      if (res.ok) {
-        const data = await res.json();
-        setDbMaterials(data);
-        const firstInStock = data.find((m: any) => m.available_stock > 0);
-        if (firstInStock) {
-          setMaterialPref(firstInStock.type);
-          setColorPref(firstInStock.color);
-          setSelectedColorHex(getColorHex(firstInStock.color));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch materials', err);
-    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -264,7 +285,7 @@ export default function Home() {
         setProjectName('');
         setInfill('20%');
         setRequestDesc('');
-        const firstInStock = dbMaterials.find((m: any) => m.available_stock > 0);
+        const firstInStock = dbMaterials.find((m: DbMaterial) => m.available_stock > 0);
         if (firstInStock) {
           setMaterialPref(firstInStock.type);
           setColorPref(firstInStock.color);
@@ -289,7 +310,7 @@ export default function Home() {
     }
   };
 
-  const handleOpenOrder = (prod: any) => {
+  const handleOpenOrder = (prod: CatalogProduct) => {
     if (!user) {
       setAuthModal('login');
       return;
@@ -499,6 +520,7 @@ export default function Home() {
                   {prod.image && (
                     <div className="relative w-full aspect-[4/3] rounded-[18px] overflow-hidden bg-neutral-100 dark:bg-neutral-900">
                       <Link href={`/products/${prod.id}`} className="block w-full h-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
                           src={prod.image ? (prod.image.startsWith('http') ? prod.image : `${R2_BASE}${prod.image}`) : '/placeholder.png'}
                           alt={prod.title} 
@@ -652,7 +674,7 @@ export default function Home() {
                     {/* Material Cards Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                       {dbMaterials.length > 0 ? (
-                        dbMaterials.map((m: any) => {
+                        dbMaterials.map((m: DbMaterial) => {
                           const colorHex = getColorHex(m.color);
                           const inStock = m.available_stock > 0;
                           const isSelected = materialPref === m.type && colorPref === m.color;
@@ -1043,7 +1065,7 @@ export default function Home() {
                     <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Role Type</label>
                     <select 
                       value={role}
-                      onChange={(e) => setRole(e.target.value as any)}
+                      onChange={(e) => setRole(e.target.value as 'customer' | 'staff')}
                       className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
                     >
                       <option value="customer">Customer</option>
@@ -1082,7 +1104,7 @@ export default function Home() {
             <div className="mt-4 pt-4 border-t border-border text-center">
               {authModal === 'login' ? (
                 <p className="text-[10px] font-mono text-text-secondary">
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button onClick={() => { setAuthModal('register'); setAuthError(''); }} className="text-foreground underline">
                     Register
                   </button>

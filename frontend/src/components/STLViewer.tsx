@@ -18,8 +18,31 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const onLoadDimensionsRef = useRef(onLoadDimensions);
+  useEffect(() => {
+    onLoadDimensionsRef.current = onLoadDimensions;
+  }, [onLoadDimensions]);
+
+  function geometryRefCleanup(mesh: THREE.Mesh | null) {
+    if (mesh) {
+      if (mesh.geometry) mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach((m) => m.dispose());
+      } else if (mesh.material) {
+        mesh.material.dispose();
+      }
+    }
+  }
+
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const safeSetLoading = (val: boolean) => {
+      Promise.resolve().then(() => setLoading(val));
+    };
+    const safeSetError = (val: string | null) => {
+      Promise.resolve().then(() => setError(val));
+    };
 
     const container = containerRef.current;
     const width = container.clientWidth;
@@ -115,8 +138,8 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
       if (bbox) {
         const size = new THREE.Vector3();
         bbox.getSize(size);
-        if (onLoadDimensions) {
-          onLoadDimensions({
+        if (onLoadDimensionsRef.current) {
+          onLoadDimensionsRef.current({
             x: size.x,
             y: size.y,
             z: size.z
@@ -124,7 +147,7 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
         }
       }
 
-      setLoading(false);
+      safeSetLoading(false);
     };
 
     if (fileUrl) {
@@ -134,8 +157,8 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
         () => {},
         (err) => {
           console.error(err);
-          setError('Failed to load STL file URL.');
-          setLoading(false);
+          safeSetError('Failed to load STL file URL.');
+          safeSetLoading(false);
         }
       );
     } else if (fileObject) {
@@ -147,18 +170,18 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
           loadGeometry(geometry);
         } catch (err) {
           console.error(err);
-          setError('Failed to parse STL file content.');
-          setLoading(false);
+          safeSetError('Failed to parse STL file content.');
+          safeSetLoading(false);
         }
       };
       reader.onerror = () => {
-        setError('Failed to read STL file.');
-        setLoading(false);
+        safeSetError('Failed to read STL file.');
+        safeSetLoading(false);
       };
       reader.readAsArrayBuffer(fileObject);
     } else {
-      setError('No file provided.');
-      setLoading(false);
+      safeSetError('No file provided.');
+      safeSetLoading(false);
     }
 
     // 8. Animation & Resize handlers
@@ -168,7 +191,7 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
       controls.update();
       
       // Auto rotate slightly if user is idle
-      if (mesh && (controls as any).state === -1) {
+      if (mesh && (controls as unknown as { state: number }).state === -1) {
         mesh.rotation.y += 0.005;
       }
       
@@ -196,17 +219,6 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
       geometryRefCleanup(mesh);
     };
   }, [fileUrl, fileObject, modelColor]);
-
-  const geometryRefCleanup = (mesh: THREE.Mesh | null) => {
-    if (mesh) {
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach((m) => m.dispose());
-      } else if (mesh.material) {
-        mesh.material.dispose();
-      }
-    }
-  };
 
   return (
     <div className="relative w-full rounded-lg overflow-hidden border border-border bg-card" style={{ height }}>

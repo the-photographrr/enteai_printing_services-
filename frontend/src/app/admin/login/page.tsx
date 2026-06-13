@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useApp } from '../../AppContext';
 import { Eye, EyeOff, Lock, Shield, AlertTriangle, Sun, Moon } from 'lucide-react';
 
@@ -28,22 +29,25 @@ export default function AdminLoginPage() {
         router.replace('/dashboard');
       } else {
         // Wrong role — boot them out and show error
-        logout();
-        setError('Access denied. Admin credentials required.');
+        Promise.resolve().then(() => {
+          logout();
+          setError('Access denied. Admin credentials required.');
+        });
       }
     }
   }, [user, router, logout]);
 
   // Restore lockout from sessionStorage on mount
   useEffect(() => {
-    const stored = sessionStorage.getItem('admin_lockout_until');
-    if (stored) {
-      const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
-      if (remaining > 0) startLockout(remaining);
-    }
-    const storedAttempts = sessionStorage.getItem('admin_attempts');
-    if (storedAttempts) setAttempts(Number(storedAttempts));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    Promise.resolve().then(() => {
+      const stored = sessionStorage.getItem('admin_lockout_until');
+      if (stored) {
+        const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
+        if (remaining > 0) startLockout(remaining);
+      }
+      const storedAttempts = sessionStorage.getItem('admin_attempts');
+      if (storedAttempts) setAttempts(Number(storedAttempts));
+    });
   }, []);
 
   function startLockout(seconds: number) {
@@ -231,9 +235,9 @@ export default function AdminLoginPage() {
           <p className="text-center text-[10px] font-mono text-text-secondary mt-6 leading-relaxed">
             This portal is monitored. Unauthorised access attempts are logged.
             <br />
-            <a href="/" className="hover:text-foreground transition-colors underline underline-offset-2 mt-1 inline-block">
+            <Link href="/" className="hover:text-foreground transition-colors underline underline-offset-2 mt-1 inline-block">
               ← Back to store
-            </a>
+            </Link>
           </p>
         </div>
       </main>

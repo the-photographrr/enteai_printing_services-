@@ -11,13 +11,21 @@ interface User {
   role: 'visitor' | 'customer' | 'staff' | 'admin' | 'super_admin';
 }
 
+interface RegisterData {
+  username: string;
+  password?: string;
+  email?: string;
+  phone?: string;
+  role?: 'visitor' | 'customer' | 'staff' | 'admin' | 'super_admin';
+}
+
 interface AppContextType {
   user: User | null;
   token: string | null;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   login: (username: string, password: string) => Promise<boolean>;
-  register: (data: any) => Promise<boolean>;
+  register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
   apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
   refreshUser: () => Promise<void>;
@@ -37,7 +45,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Load theme & auth from localStorage
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
     if (savedTheme) {
-      setTheme(savedTheme);
+      Promise.resolve().then(() => setTheme(savedTheme));
       document.documentElement.classList.toggle('dark', savedTheme === 'dark');
     } else {
       document.documentElement.classList.add('dark');
@@ -46,8 +54,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      Promise.resolve().then(() => {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+      });
     }
   }, []);
 
@@ -83,7 +93,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (formData: any): Promise<boolean> => {
+  const register = async (formData: RegisterData): Promise<boolean> => {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',

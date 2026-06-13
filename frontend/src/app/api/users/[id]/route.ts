@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   let updatePasswordSQL = '';
-  let bindParams: any[] = [username, email, role, phone, address];
+  const bindParams: (string | number | null)[] = [username, email, role, phone, address];
 
   if (body.password) {
     // Validate password strength

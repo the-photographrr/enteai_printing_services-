@@ -4,9 +4,124 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../AppContext';
 import STLViewer from '../../components/STLViewer';
 import { 
-  BarChart, Layers, Calendar, Settings, Database, Plus, RefreshCw, 
-  Trash, Edit2, Play, CheckCircle, Package, Truck, ShoppingCart, X, Check, AlertCircle
+  Settings, Plus, RefreshCw, 
+  Trash, Edit2, Play, X, Check, AlertCircle
 } from 'lucide-react';
+
+interface DashboardUser {
+  id: number;
+  username: string;
+  email: string;
+  role: 'visitor' | 'customer' | 'staff' | 'admin' | 'super_admin';
+  phone?: string;
+  address?: string;
+  created_at?: string;
+}
+
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  rate: number;
+  status: string;
+  image?: string;
+}
+
+interface KPIs {
+  total_revenue?: number;
+  pending_quotes?: number;
+  active_printers?: number;
+  completed_jobs?: number;
+  new_requests?: number | string;
+  pending_quotations?: number | string;
+  jobs_printing?: number | string;
+  ready_for_pickup?: number | string;
+  delivered_orders?: number | string;
+  revenue?: number;
+  [key: string]: unknown;
+}
+
+interface Activity {
+  id: number;
+  description: string;
+  timestamp: string;
+  time?: string;
+  title?: string;
+  desc?: string;
+  [key: string]: unknown;
+}
+
+interface Order {
+  id: number;
+  status: string;
+  shipping_carrier?: string;
+  tracking_number?: string;
+  product_title?: string;
+  quantity?: number;
+  total_price?: number;
+  [key: string]: unknown;
+}
+
+interface PrintRequestFile {
+  id: number;
+  file: string;
+  volume_cm3?: number;
+}
+
+interface Quotation {
+  id: number;
+  total_price: number;
+  [key: string]: unknown;
+}
+
+interface PrintRequest {
+  id: number;
+  status: string;
+  project_name?: string;
+  required_delivery_date?: string;
+  customer_name?: string;
+  material_preference?: string;
+  color_preference?: string;
+  infill?: string;
+  files?: PrintRequestFile[];
+  dimensions?: string;
+  quantity?: number;
+  quotation?: Quotation;
+  shipping_carrier?: string;
+  tracking_number?: string;
+  [key: string]: unknown;
+}
+
+interface Material {
+  id: number;
+  name: string;
+  brand: string;
+  type: string;
+  color: string;
+  available_stock: number;
+  reorder_level: number;
+  [key: string]: unknown;
+}
+
+interface Printer {
+  id: number;
+  name: string;
+  type: string;
+  build_volume: string;
+  status: string;
+}
+
+interface ProductionJob {
+  id: number;
+  status: string;
+  project_name?: string;
+  printer_name?: string;
+  material_name?: string;
+  estimated_time_minutes?: number;
+  printer?: number;
+  [key: string]: unknown;
+}
 
 const R2_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
 
@@ -29,7 +144,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'quotes' | 'crm' | 'production' | 'inventory' | 'orders' | 'products' | 'users'>('overview');
 
   // Products management states
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [newProdTitle, setNewProdTitle] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
@@ -46,16 +161,16 @@ export default function AdminDashboard() {
   const [editProdStatus, setEditProdStatus] = useState('active');
 
   // KPI & activity states
-  const [kpis, setKpis] = useState<any>({});
-  const [activityFeed, setActivityFeed] = useState<any[]>([]);
+  const [kpis, setKpis] = useState<KPIs>({});
+  const [activityFeed, setActivityFeed] = useState<Activity[]>([]);
   const [loadingOverview, setLoadingOverview] = useState(true);
 
   // Orders states
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
   // User management states
-  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<DashboardUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
@@ -71,7 +186,7 @@ export default function AdminDashboard() {
   const [creatingUser, setCreatingUser] = useState(false);
 
   // User edit states
-  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editingUser, setEditingUser] = useState<DashboardUser | null>(null);
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
@@ -82,8 +197,8 @@ export default function AdminDashboard() {
   const [savingUser, setSavingUser] = useState(false);
 
   // Requests/Quotes states
-  const [requests, setRequests] = useState<any[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [requests, setRequests] = useState<PrintRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<PrintRequest | null>(null);
 
   // Quote Builder input states
   const [materialCost, setMaterialCost] = useState(0.0);
@@ -97,7 +212,7 @@ export default function AdminDashboard() {
   const [submittingQuote, setSubmittingQuote] = useState(false);
 
   // Inventory states
-  const [materials, setMaterials] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [newMatName, setNewMatName] = useState('');
   const [newMatBrand, setNewMatBrand] = useState('');
   const [newMatType, setNewMatType] = useState('PLA');
@@ -135,7 +250,7 @@ export default function AdminDashboard() {
   const handleOpenEyeDropper = async () => {
     if (typeof window !== 'undefined' && 'EyeDropper' in window) {
       try {
-        const eyeDropper = new (window as any).EyeDropper();
+        const eyeDropper = new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
         const result = await eyeDropper.open();
         handleSelectColor(result.sRGBHex);
       } catch (err) {
@@ -150,8 +265,8 @@ export default function AdminDashboard() {
   const [newMatReorder, setNewMatReorder] = useState(1.0);
 
   // Production states
-  const [printers, setPrinters] = useState<any[]>([]);
-  const [productionJobs, setProductionJobs] = useState<any[]>([]);
+  const [printers, setPrinters] = useState<Printer[]>([]);
+  const [productionJobs, setProductionJobs] = useState<ProductionJob[]>([]);
 
   // Printer management states
   const [newPrinterName, setNewPrinterName] = useState('');
@@ -176,9 +291,10 @@ export default function AdminDashboard() {
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'users') fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const fetchOverviewData = async () => {
+  async function fetchOverviewData() {
     try {
       setLoadingOverview(true);
       const res = await apiFetch('/admin/dashboard/');
@@ -193,9 +309,9 @@ export default function AdminDashboard() {
     } finally {
       setLoadingOverview(false);
     }
-  };
+  }
 
-  const fetchRequests = async () => {
+  async function fetchRequests() {
     try {
       const res = await apiFetch('/requests/');
       if (res.ok) {
@@ -205,9 +321,9 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }
 
-  const fetchInventory = async () => {
+  async function fetchInventory() {
     try {
       const res = await apiFetch('/materials/');
       if (res.ok) {
@@ -217,9 +333,9 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }
 
-  const fetchPrintersAndJobs = async () => {
+  async function fetchPrintersAndJobs() {
     try {
       const printersRes = await apiFetch('/printers/');
       const jobsRes = await apiFetch('/production-jobs/');
@@ -230,9 +346,9 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }
 
-  const fetchOrders = async () => {
+  async function fetchOrders() {
     try {
       setLoadingOrders(true);
       const res = await apiFetch('/orders/');
@@ -245,9 +361,9 @@ export default function AdminDashboard() {
     } finally {
       setLoadingOrders(false);
     }
-  };
+  }
 
-  const fetchProducts = async () => {
+  async function fetchProducts() {
     try {
       setLoadingProducts(true);
       const res = await apiFetch('/products/');
@@ -260,9 +376,9 @@ export default function AdminDashboard() {
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }
 
-  const fetchUsers = async () => {
+  async function fetchUsers() {
     try {
       setLoadingUsers(true);
       const res = await apiFetch('/users');
@@ -272,7 +388,7 @@ export default function AdminDashboard() {
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,7 +469,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const startEditUser = (u: any) => {
+  const startEditUser = (u: DashboardUser) => {
     setEditingUser(u);
     setEditUsername(u.username);
     setEditEmail(u.email);
@@ -687,14 +803,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Helper UI Color Getters
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High': return 'text-red-500 bg-red-500/10';
-      case 'Medium': return 'text-amber-500 bg-amber-500/10';
-      default: return 'text-blue-500 bg-blue-500/10';
-    }
-  };
+
 
   const getJobStatusBadge = (status: string) => {
     switch (status) {
@@ -1125,14 +1234,14 @@ export default function AdminDashboard() {
                           type="text"
                           placeholder="Carrier"
                           defaultValue={r.shipping_carrier || ''}
-                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, e.target.value, r.tracking_number)}
+                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, e.target.value, r.tracking_number || '')}
                           className="w-full px-1.5 py-0.5 bg-background border border-border rounded text-[9px] focus:outline-none focus:border-foreground"
                         />
                         <input 
                           type="text"
                           placeholder="Tracking ID"
                           defaultValue={r.tracking_number || ''}
-                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, r.shipping_carrier, e.target.value)}
+                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, r.shipping_carrier || '', e.target.value)}
                           className="w-full px-1.5 py-0.5 bg-background border border-border rounded text-[9px] focus:outline-none focus:border-foreground"
                         />
                       </div>
@@ -1154,14 +1263,14 @@ export default function AdminDashboard() {
                           type="text"
                           placeholder="Carrier"
                           defaultValue={r.shipping_carrier || ''}
-                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, e.target.value, r.tracking_number)}
+                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, e.target.value, r.tracking_number || '')}
                           className="w-full px-1.5 py-0.5 bg-background border border-border rounded text-[9px] focus:outline-none focus:border-foreground"
                         />
                         <input 
                           type="text"
                           placeholder="Tracking ID"
                           defaultValue={r.tracking_number || ''}
-                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, r.shipping_carrier, e.target.value)}
+                          onBlur={(e) => handleUpdatePrintRequestTracking(r.id, r.shipping_carrier || '', e.target.value)}
                           className="w-full px-1.5 py-0.5 bg-background border border-border rounded text-[9px] focus:outline-none focus:border-foreground"
                         />
                       </div>
@@ -1207,7 +1316,7 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-3 gap-4 text-[10px] text-text-secondary">
                           <div>Printer: <strong className="text-foreground">{job.printer_name || 'Unassigned'}</strong></div>
                           <div>Material: <strong className="text-foreground">{job.material_name || 'None'}</strong></div>
-                          <div>Runtime: <strong className="text-foreground">{(job.estimated_time_minutes / 60).toFixed(1)} hrs</strong></div>
+                          <div>Runtime: <strong className="text-foreground">{((job.estimated_time_minutes || 0) / 60).toFixed(1)} hrs</strong></div>
                         </div>
 
                         {/* Status transition controls */}
@@ -1721,7 +1830,6 @@ export default function AdminDashboard() {
                             {[90, 80, 70, 60, 50, 40, 30].map((lightness) => (
                               <React.Fragment key={lightness}>
                                 {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((hue) => {
-                                  const hslColor = `hsl(${hue}, 100%, ${lightness}%)`;
                                   const l = lightness / 100;
                                   const a = (100 * Math.min(l, 1 - l)) / 100;
                                   const f = (n: number) => {
@@ -2089,6 +2197,7 @@ export default function AdminDashboard() {
                             ) : (
                               <>
                                 {prod.image ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
                                   <img 
                                     src={prod.image.startsWith('http') ? prod.image : `${R2_BASE}${prod.image}`}
                                     alt={prod.title} 
@@ -2394,7 +2503,7 @@ export default function AdminDashboard() {
                         u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
                         u.email.toLowerCase().includes(userSearch.toLowerCase())
                       )
-                      .map((u: any) => {
+                      .map((u: DashboardUser) => {
                         const roleBadge: Record<string, string> = {
                           super_admin: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
                           admin:       'bg-blue-500/10 text-blue-500 border-blue-500/20',

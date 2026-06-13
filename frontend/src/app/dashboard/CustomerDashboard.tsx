@@ -1,20 +1,61 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useApp } from '../AppContext';
 import STLViewer from '../../components/STLViewer';
 import { 
   FileText, Check, X, Clock, Settings, RefreshCw, 
-  CreditCard, ArrowUpRight, CheckCircle2, AlertTriangle, Upload, ShoppingBag, User as UserIcon
+  CreditCard, CheckCircle2, AlertTriangle, Upload, ShoppingBag
 } from 'lucide-react';
+
+interface CustomRequest {
+  id: number;
+  project_name: string;
+  required_delivery_date: string;
+  status: string;
+  dimensions: string;
+  material_preference: string;
+  color_preference: string;
+  infill?: string;
+  quantity: number;
+  description: string;
+  shipping_carrier?: string;
+  tracking_number?: string;
+  files?: Array<{ file: string; volume_cm3?: number }>;
+  quotation?: {
+    id: number;
+    material_cost: number;
+    machine_cost: number;
+    post_processing_cost: number;
+    packaging_cost: number;
+    estimated_production_hours: number;
+    total_price: number;
+    validity_date: string;
+    status: string;
+  };
+}
+
+interface CatalogOrder {
+  id: number;
+  product_title: string;
+  quantity: number;
+  status: string;
+  product_rate?: string;
+  total_price?: string;
+  shipping_address: string;
+  shipping_carrier?: string;
+  tracking_number?: string;
+  created_at: string;
+}
 
 export default function CustomerDashboard() {
   const { user, apiFetch, refreshUser } = useApp();
-  const [requests, setRequests] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [requests, setRequests] = useState<CustomRequest[]>([]);
+  const [orders, setOrders] = useState<CatalogOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeRequest, setActiveRequest] = useState<any | null>(null);
-  const [activeOrder, setActiveOrder] = useState<any | null>(null);
+  const [activeRequest, setActiveRequest] = useState<CustomRequest | null>(null);
+  const [activeOrder, setActiveOrder] = useState<CatalogOrder | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'orders' | 'profile'>('requests');
 
   // Profile update state
@@ -29,18 +70,7 @@ export default function CustomerDashboard() {
   const [paymentError, setPaymentError] = useState('');
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      setProfilePhone(user.phone || '');
-      setProfileAddress(user.address || '');
-    }
-  }, [user]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       setLoading(true);
       const [reqRes, ordRes] = await Promise.all([
@@ -66,7 +96,22 @@ export default function CustomerDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFetch]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      fetchUserData();
+    });
+  }, [fetchUserData]);
+
+  useEffect(() => {
+    if (user) {
+      Promise.resolve().then(() => {
+        setProfilePhone(user.phone || '');
+        setProfileAddress(user.address || '');
+      });
+    }
+  }, [user]);
 
   const handleSaveProfile = async () => {
     try {
@@ -236,9 +281,9 @@ export default function CustomerDashboard() {
             {requests.length === 0 ? (
               <div className="border border-border border-dashed rounded-lg p-12 text-center bg-card/50">
                 <p className="text-xs text-text-secondary font-mono">No requests submitted yet.</p>
-                <a href="/#custom-print" className="mt-4 inline-block px-4 py-2 bg-foreground text-background text-[10px] font-mono tracking-wider uppercase rounded">
+                <Link href="/#custom-print" className="mt-4 inline-block px-4 py-2 bg-foreground text-background text-[10px] font-mono tracking-wider uppercase rounded">
                   Create First Request
-                </a>
+                </Link>
               </div>
             ) : (
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
@@ -488,9 +533,9 @@ export default function CustomerDashboard() {
             {orders.length === 0 ? (
               <div className="border border-border border-dashed rounded-lg p-12 text-center bg-card/50">
                 <p className="text-xs text-text-secondary font-mono">No direct orders placed yet.</p>
-                <a href="/#catalog" className="mt-4 inline-block px-4 py-2 bg-foreground text-background text-[10px] font-mono tracking-wider uppercase rounded">
+                <Link href="/#catalog" className="mt-4 inline-block px-4 py-2 bg-foreground text-background text-[10px] font-mono tracking-wider uppercase rounded">
                   Browse Catalog
-                </a>
+                </Link>
               </div>
             ) : (
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">

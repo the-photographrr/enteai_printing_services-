@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, useCallback } from 'react';
 import { useApp } from '../../AppContext';
 import {
   Sun, Moon, Check, AlertCircle, ChevronRight, ChevronLeft,
@@ -21,11 +21,21 @@ const COLORS = [
 ];
 
 
+interface ProductDetail {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  rate: string | number;
+  image?: string;
+  status: string;
+}
+
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user, login, register, logout, theme, toggleTheme, apiFetch, refreshUser } = useApp();
 
-  const [product, setProduct] = useState<any | null>(null);
+  const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [quantity, setQuantity] = useState(1);
@@ -80,11 +90,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     }
   ];
 
-  useEffect(() => {
-    fetchProductDetail();
-  }, [id]);
-
-  const fetchProductDetail = async () => {
+  const fetchProductDetail = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/products/${id}`);
@@ -97,7 +103,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      fetchProductDetail();
+    });
+  }, [fetchProductDetail]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,7 +268,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </Link>
             <nav className="hidden md:flex items-center gap-6 text-sm">
               <Link href="/#catalog" className="text-text-secondary hover:text-foreground transition-colors font-mono">Catalog</Link>
-              <a href="/#custom-print" className="text-text-secondary hover:text-foreground transition-colors font-mono">Custom Print</a>
+              <Link href="/#custom-print" className="text-text-secondary hover:text-foreground transition-colors font-mono">Custom Print</Link>
               {user && (
                 <Link href="/dashboard" className="text-text-secondary hover:text-foreground transition-colors font-mono">
                   Dashboard
@@ -309,7 +321,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       {mobileMenuOpen && (
         <div className="md:hidden glass border-b border-border py-4 px-6 flex flex-col gap-4">
           <Link href="/#catalog" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Catalog</Link>
-          <a href="/#custom-print" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Custom Print</a>
+          <Link href="/#custom-print" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Custom Print</Link>
           {user ? (
             <>
               <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Dashboard</Link>
@@ -369,6 +381,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                       isActive ? 'border-foreground scale-105 shadow-sm' : 'border-border hover:border-text-secondary'
                     }`}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={imageUrl} 
                       alt={`Thumbnail ${idx}`} 
@@ -382,6 +395,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
             {/* Main Image Slider Screen */}
             <div className="flex-grow relative aspect-square rounded-3xl border border-border bg-neutral-50 dark:bg-[#0c0c0c] overflow-hidden flex items-center justify-center group shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={imageUrl} 
                 alt={product.title} 
@@ -562,7 +576,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <span>&copy; {new Date().getFullYear()} ENTE.PrintLabs. All rights reserved.</span>
           <div className="flex gap-6">
             <Link href="/#catalog" className="hover:text-foreground transition-colors">Catalog</Link>
-            <a href="/#custom-print" className="hover:text-foreground transition-colors">Custom Print</a>
+            <Link href="/#custom-print" className="hover:text-foreground transition-colors">Custom Print</Link>
             <a href="mailto:hello@enteprintlabs.com" className="hover:text-foreground transition-colors">Contact</a>
           </div>
         </div>
@@ -620,7 +634,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Role Type</label>
                     <select 
                       value={role}
-                      onChange={(e) => setRole(e.target.value as any)}
+                      onChange={(e) => setRole(e.target.value as 'customer' | 'staff')}
                       className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
                     >
                       <option value="customer">Customer</option>
@@ -659,7 +673,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <div className="mt-4 pt-4 border-t border-border text-center">
               {authModal === 'login' ? (
                 <p className="text-[10px] font-mono text-text-secondary">
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button onClick={() => { setAuthModal('register'); setAuthError(''); }} className="text-foreground underline">
                     Register
                   </button>

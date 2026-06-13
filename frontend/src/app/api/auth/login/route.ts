@@ -23,7 +23,14 @@ export async function POST(req: NextRequest) {
     if (!valid) return NextResponse.json({ detail: 'Invalid credentials.' }, { status: 401 });
 
     const token = await signToken({ sub: String(user.id), role: user.role, username: user.username });
-    const { password: _pw, ...safeUser } = user;
+    const safeUser = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      address: user.address,
+    };
 
     return NextResponse.json({ access: token, user: safeUser });
   } catch (err) {
