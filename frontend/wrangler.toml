@@ -2,10 +2,6 @@ name = "enteaiprinting"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
-main = ".vercel/output/static/_worker.js"
-
-[assets]
-directory = ".vercel/output/static"
 
 # ─── D1 Database ─────────────────────────────────────────────────────────────
 # Create with: npx wrangler d1 create enteprintlabs-db
