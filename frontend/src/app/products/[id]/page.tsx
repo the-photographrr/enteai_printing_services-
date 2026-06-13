@@ -449,7 +449,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <div className="py-4 border-t border-b border-border">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-black text-foreground tracking-tight">
-                  ₹{product.rate ? parseFloat(product.rate).toFixed(2) : '0.00'}
+                  ₹{product.rate ? Number(product.rate).toFixed(2) : '0.00'}
                 </span>
                 <span className="text-[10px] text-text-secondary font-mono uppercase">incl. taxes</span>
               </div>
@@ -712,7 +712,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
               <div className="flex justify-between items-center bg-background/50 border border-border p-3 rounded-lg">
                 <span className="text-text-secondary">Unit Rate:</span>
-                <span className="font-bold text-foreground">₹ {parseFloat(product.rate || '0').toFixed(2)}</span>
+                <span className="font-bold text-foreground">₹ {Number(product.rate || 0).toFixed(2)}</span>
               </div>
 
               <div>
@@ -767,7 +767,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex justify-between items-center border-t border-border pt-3 font-sans">
                 <span className="text-text-secondary uppercase font-bold text-[10px] font-mono">Total Price:</span>
                 <span className="text-lg font-black text-foreground">
-                  ₹ {parseFloat(String((product.rate || 0) * quantity)).toFixed(2)}
+                  ₹ {(Number(product.rate || 0) * quantity).toFixed(2)}
                 </span>
               </div>
 

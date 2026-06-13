@@ -546,7 +546,7 @@ export default function Home() {
                         <h3 className="text-xs font-bold text-foreground uppercase tracking-tight line-clamp-1">{prod.title}</h3>
                       </Link>
                       <span className="text-sm font-bold text-foreground block">
-                        ${prod.rate ? parseFloat(prod.rate).toFixed(0) : '0'}
+                        ${prod.rate ? Number(prod.rate).toFixed(0) : '0'}
                       </span>
                     </div>
                     <button 
@@ -1138,7 +1138,7 @@ export default function Home() {
             <form onSubmit={handleSubmitOrder} className="space-y-4">
               <div className="flex justify-between items-center bg-background/50 border border-border p-3 rounded-lg">
                 <span className="text-text-secondary">Unit Rate:</span>
-                <span className="font-bold text-foreground">₹ {parseFloat(orderProduct.rate || '0').toFixed(2)}</span>
+                <span className="font-bold text-foreground">₹ {Number(orderProduct.rate || 0).toFixed(2)}</span>
               </div>
 
               {/* Quantity selector */}
@@ -1194,7 +1194,7 @@ export default function Home() {
               <div className="flex justify-between items-center border-t border-border pt-3">
                 <span className="text-text-secondary uppercase font-bold text-[10px]">Total Price:</span>
                 <span className="text-lg font-bold text-foreground">
-                  ₹ {parseFloat(String((orderProduct.rate || 0) * orderQty)).toFixed(2)}
+                  ₹ {(Number(orderProduct.rate || 0) * orderQty).toFixed(2)}
                 </span>
               </div>
 

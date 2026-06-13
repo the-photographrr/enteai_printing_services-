@@ -178,7 +178,7 @@ export default function CustomerDashboard() {
       const res = await apiFetch(`/requests/${reqId}/`, {
         method: 'PATCH',
         body: JSON.stringify({
-          description: `${activeRequest.description}\n\n[PAYMENT UPLOADED: Verified offline transaction screenshot.]`
+          description: `${activeRequest?.description || ''}\n\n[PAYMENT UPLOADED: Verified offline transaction screenshot.]`
         })
       });
 
@@ -426,16 +426,16 @@ export default function CustomerDashboard() {
                       </div>
                     </div>
 
-                    {activeRequest.quotation.status === 'Pending' && (
+                    {activeRequest.quotation?.status === 'Pending' && (
                       <div className="flex gap-4 pt-4 border-t border-border">
                         <button
-                          onClick={() => handleRejectQuote(activeRequest.quotation.id)}
+                          onClick={() => handleRejectQuote(activeRequest.quotation!.id)}
                           className="flex-1 py-2.5 border border-red-500/20 hover:border-red-500/50 text-red-500 text-xs font-bold uppercase rounded transition-colors flex items-center justify-center gap-2"
                         >
                           <X size={14} /> Reject Quotation
                         </button>
                         <button
-                          onClick={() => handleAcceptQuote(activeRequest.quotation.id)}
+                          onClick={() => handleAcceptQuote(activeRequest.quotation!.id)}
                           className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold uppercase rounded transition-colors flex items-center justify-center gap-2"
                         >
                           <Check size={14} /> Accept & Start Production
@@ -443,7 +443,7 @@ export default function CustomerDashboard() {
                       </div>
                     )}
 
-                    {activeRequest.quotation.status === 'Accepted' && (
+                    {activeRequest.quotation?.status === 'Accepted' && (
                       <div className="border border-dashed border-border rounded-lg p-6 bg-card space-y-6">
                         <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                           <CreditCard size={14} className="text-blue-500" />

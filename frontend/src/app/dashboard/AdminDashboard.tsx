@@ -39,7 +39,6 @@ interface KPIs {
   ready_for_pickup?: number | string;
   delivered_orders?: number | string;
   revenue?: number;
-  [key: string]: unknown;
 }
 
 interface Activity {
@@ -49,7 +48,6 @@ interface Activity {
   time?: string;
   title?: string;
   desc?: string;
-  [key: string]: unknown;
 }
 
 interface Order {
@@ -59,8 +57,10 @@ interface Order {
   tracking_number?: string;
   product_title?: string;
   quantity?: number;
-  total_price?: number;
-  [key: string]: unknown;
+  total_price?: string;
+  customer_username?: string;
+  shipping_address?: string;
+  payment_proof?: string;
 }
 
 interface PrintRequestFile {
@@ -72,7 +72,6 @@ interface PrintRequestFile {
 interface Quotation {
   id: number;
   total_price: number;
-  [key: string]: unknown;
 }
 
 interface PrintRequest {
@@ -90,7 +89,6 @@ interface PrintRequest {
   quotation?: Quotation;
   shipping_carrier?: string;
   tracking_number?: string;
-  [key: string]: unknown;
 }
 
 interface Material {
@@ -101,7 +99,9 @@ interface Material {
   color: string;
   available_stock: number;
   reorder_level: number;
-  [key: string]: unknown;
+  available?: number;
+  reserved?: number;
+  reserved_stock?: number;
 }
 
 interface Printer {
@@ -120,7 +120,6 @@ interface ProductionJob {
   material_name?: string;
   estimated_time_minutes?: number;
   printer?: number;
-  [key: string]: unknown;
 }
 
 const R2_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
@@ -1412,7 +1411,7 @@ export default function AdminDashboard() {
                               activeJobs.map((j) => (
                                 <div key={j.id} className="p-2 border border-border bg-background/40 rounded flex justify-between items-center text-[10px]">
                                   <span className="truncate">{j.project_name}</span>
-                                  <span>{(j.estimated_time_minutes / 60).toFixed(1)} hrs</span>
+                                  <span>{((j.estimated_time_minutes || 0) / 60).toFixed(1)} hrs</span>
                                 </div>
                               ))
                             )}
@@ -1520,8 +1519,8 @@ export default function AdminDashboard() {
                     <tbody className="divide-y divide-border">
                       {materials.map((mat) => {
                         const isEditing = editingMaterialId === mat.id;
-                        const availableQty = mat.available !== undefined ? mat.available : mat.available_stock;
-                        const reservedQty = mat.reserved !== undefined ? mat.reserved : mat.reserved_stock;
+                        const availableQty = (mat.available !== undefined ? mat.available : mat.available_stock) || 0;
+                        const reservedQty = (mat.reserved !== undefined ? mat.reserved : (mat.reserved_stock ?? 0)) || 0;
                         const thresholdQty = mat.reorder_level !== undefined ? mat.reorder_level : 1.0;
                         
                         return (
@@ -2073,7 +2072,7 @@ export default function AdminDashboard() {
                           {ord.product_title}
                         </td>
                         <td className="p-4 font-bold">{ord.quantity}</td>
-                        <td className="p-4 font-bold text-foreground">₹ {parseFloat(ord.total_price || '0').toFixed(2)}</td>
+                        <td className="p-4 font-bold text-foreground">₹ {parseFloat(String(ord.total_price || '0')).toFixed(2)}</td>
                         <td className="p-4 max-w-xs truncate" title={ord.shipping_address}>
                           {ord.shipping_address}
                         </td>
@@ -2083,14 +2082,14 @@ export default function AdminDashboard() {
                               type="text"
                               placeholder="Carrier"
                               defaultValue={ord.shipping_carrier || ''}
-                              onBlur={(e) => handleUpdateOrderTracking(ord.id, e.target.value, ord.tracking_number)}
+                              onBlur={(e) => handleUpdateOrderTracking(ord.id, e.target.value, ord.tracking_number || '')}
                               className="px-1.5 py-1 bg-background border border-border rounded w-28 focus:outline-none focus:border-foreground"
                             />
                             <input 
                               type="text"
                               placeholder="Tracking ID"
                               defaultValue={ord.tracking_number || ''}
-                              onBlur={(e) => handleUpdateOrderTracking(ord.id, ord.shipping_carrier, e.target.value)}
+                              onBlur={(e) => handleUpdateOrderTracking(ord.id, ord.shipping_carrier || '', e.target.value)}
                               className="px-1.5 py-1 bg-background border border-border rounded w-28 focus:outline-none focus:border-foreground"
                             />
                           </div>
@@ -2287,7 +2286,7 @@ export default function AdminDashboard() {
                                       className="w-full px-1.5 py-0.5 bg-background border border-border rounded text-[10px] text-foreground focus:outline-none font-mono"
                                     />
                                   ) : (
-                                    <span className="text-[10px] font-bold text-foreground font-mono">₹ {parseFloat(prod.rate || '0').toFixed(0)}</span>
+                                    <span className="text-[10px] font-bold text-foreground font-mono">₹ {Number(prod.rate || 0).toFixed(0)}</span>
                                   )}
                                 </div>
                               </div>
@@ -2335,7 +2334,7 @@ export default function AdminDashboard() {
                                     setEditProdTitle(prod.title);
                                     setEditProdDesc(prod.description);
                                     setEditProdCategory(prod.category);
-                                    setEditProdRate(parseFloat(prod.rate || '0'));
+                                    setEditProdRate(prod.rate || 0);
                                     setEditProdStatus(prod.status || 'active');
                                     setEditProdImage(null);
                                   }}
@@ -2553,7 +2552,7 @@ export default function AdminDashboard() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-text-secondary">
-                              {new Date(u.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {new Date(u.created_at || '').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </td>
                             <td className="px-4 py-3 text-right">
                               {!isSelf && !isProtected ? (
