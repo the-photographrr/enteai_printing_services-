@@ -9,7 +9,7 @@ pages_build_output_dir = ".vercel/output/static"
 [[d1_databases]]
 binding = "DB"
 database_name = "enteprintlabs-db"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "2e7f2765-c390-4129-8b39-4452125160ca"
 
 # ─── R2 Bucket ───────────────────────────────────────────────────────────────
 # Create with: npx wrangler r2 bucket create enteprintlabs-media
