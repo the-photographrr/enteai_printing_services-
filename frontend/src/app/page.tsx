@@ -49,12 +49,12 @@ export default function Home() {
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
   const [heroSettings, setHeroSettings] = useState<Record<string, string>>({
-    hero_title1: 'HONOR YOUR HELMET.',
-    hero_title2: 'ELEVATE YOUR SPACE.',
-    hero_description: 'India\'s first wall mount engineered to transform your riding gear into a premium display piece. High-strength structural printing meets architectural minimalism.',
-    hero_price: '299',
-    hero_model_url: '/models/helmet_holder.stl',
-    hero_model_color: '#ef4444'
+    hero_title1: 'PRECISION 3D PRINTING',
+    hero_title2: 'FABRICATED ON DEMAND.',
+    hero_description: 'India\'s premier additive manufacturing studio. Browse our catalog of custom-engineered products or submit custom designs for high-fidelity production.',
+    hero_price: '',
+    hero_model_url: '/models/sample_cube.stl',
+    hero_model_color: '#3b82f6'
   });
 
   const fetchSettings = useCallback(async () => {
@@ -182,12 +182,14 @@ export default function Home() {
               </p>
               
               <div className="flex items-center gap-6">
-                <span className="text-3xl font-black text-foreground tracking-tight">₹{heroSettings.hero_price}</span>
+                {heroSettings.hero_price && heroSettings.hero_price !== '0' && heroSettings.hero_price.trim() !== '' && (
+                  <span className="text-3xl font-black text-foreground tracking-tight">₹{heroSettings.hero_price}</span>
+                )}
                 <Link 
                   href="/#catalog" 
                   className="px-8 py-3.5 bg-foreground text-background text-sm font-bold tracking-widest rounded-lg hover:opacity-90 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.12)] uppercase"
                 >
-                  BUY NOW
+                  {heroSettings.hero_price && heroSettings.hero_price !== '0' && heroSettings.hero_price.trim() !== '' ? 'BUY NOW' : 'EXPLORE CATALOG'}
                 </Link>
               </div>
             </div>

@@ -146,8 +146,9 @@ INSERT OR IGNORE INTO materials (id, name, brand, type, color, available_stock, 
 
 -- Seed site settings
 INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES 
-('hero_title1', 'HONOR YOUR HELMET.'),
-('hero_title2', 'ELEVATE YOUR SPACE.'),
-('hero_description', 'India''s first wall mount engineered to transform your riding gear into a premium display piece. High-strength structural printing meets architectural minimalism.'),
-('hero_price', '299'),
-('hero_model_url', '/models/helmet_holder.stl');
+('hero_title1', 'PRECISION 3D PRINTING'),
+('hero_title2', 'FABRICATED ON DEMAND.'),
+('hero_description', 'India''s premier additive manufacturing studio. Browse our catalog of custom-engineered products or submit custom designs for high-fidelity production.'),
+('hero_price', ''),
+('hero_model_url', '/models/sample_cube.stl'),
+('hero_model_color', '#3b82f6');
