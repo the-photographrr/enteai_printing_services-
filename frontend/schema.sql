@@ -132,9 +132,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
 -- Seed default admin and superadmin users
 -- Passwords are set to 'admin123' hashed using bcrypt
 INSERT OR IGNORE INTO users (username, email, password, role) VALUES 
-('admin', 'admin@printlabs.com', '$2b$10$jFuXAmDeZ2VixZarZlow5.JuBfPg8SQKkkf1hFhh6DXvH/ZzAaXfS', 'admin'),
-('superadmin', 'superadmin@printlabs.com', '$2b$10$jFuXAmDeZ2VixZarZlow5.JuBfPg8SQKkkf1hFhh6DXvH/ZzAaXfS', 'super_admin'),
-('arunkaarooth', 'arun@printlabs.com', '$2b$10$EAeGxr/M1Y0H9UMwIT3LtOM5Hz84mHK1IFWb..oMaZoVJXhmb8ZSq', 'super_admin');
+('arunkarooth', 'arukarooth6@gmail.com', '$2b$10$EAeGxr/M1Y0H9UMwIT3LtOM5Hz84mHK1IFWb..oMaZoVJXhmb8ZSq', 'super_admin');
 
 -- Seed default materials
 INSERT OR IGNORE INTO materials (id, name, brand, type, color, available_stock, reserved_stock, reorder_level) VALUES

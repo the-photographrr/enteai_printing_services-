@@ -92,8 +92,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try { r2 = getR2(req); } catch { /* R2 optional in dev */ }
 
   if (imageFile && imageFile.size > 0 && r2) {
-    imageKey = `products/${crypto.randomUUID()}-${imageFile.name.replace(/\\s+/g, '_')}`;
-    await r2.put(imageKey, await imageFile.arrayBuffer(), {
+    imageKey = `products/${crypto.randomUUID()}-${imageFile.name.replace(/\s+/g, '_')}`;
+    await r2.put(imageKey, imageFile.stream(), {
       httpMetadata: { contentType: imageFile.type || 'image/jpeg' }
     });
     hasNewImage = true;
@@ -108,8 +108,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   for (const file of mediaFiles) {
     if (file && file.size > 0 && r2) {
-      const key = `products/${crypto.randomUUID()}-${file.name.replace(/\\s+/g, '_')}`;
-      await r2.put(key, await file.arrayBuffer(), {
+      const key = `products/${crypto.randomUUID()}-${file.name.replace(/\s+/g, '_')}`;
+      await r2.put(key, file.stream(), {
         httpMetadata: { contentType: file.type || 'application/octet-stream' }
       });
       mediaKeys.push(key);
