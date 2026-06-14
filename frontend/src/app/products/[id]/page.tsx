@@ -207,25 +207,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  // Get CSS filter styling for dynamic color shifting
-  const getColorFilterStyle = (colorName: string): React.CSSProperties => {
-    switch (colorName.toLowerCase()) {
-      case 'red':
-        return { filter: 'none' };
-      case 'yellow':
-        return { filter: 'hue-rotate(60deg) saturate(1.8) contrast(1.1)' };
-      case 'white':
-        return { filter: 'grayscale(1) brightness(1.75) contrast(0.8)' };
-      case 'black':
-        return { filter: 'grayscale(1) brightness(0.25) contrast(1.2)' };
-      case 'orange':
-        return { filter: 'hue-rotate(30deg) saturate(1.8) contrast(1.1)' };
-      case 'green':
-        return { filter: 'hue-rotate(120deg) saturate(1.6) contrast(1.1)' };
-      default:
-        return {};
-    }
-  };
+
 
   if (loading) {
     return (
@@ -266,7 +248,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </Link>
             <nav className="hidden md:flex items-center gap-6 text-sm">
               <Link href="/#catalog" className="text-text-secondary hover:text-foreground transition-colors font-mono">Catalog</Link>
-              <Link href="/#custom-print" className="text-text-secondary hover:text-foreground transition-colors font-mono">Custom Print</Link>
+
               {user && (
                 <Link href="/dashboard" className="text-text-secondary hover:text-foreground transition-colors font-mono">
                   Dashboard
@@ -319,7 +301,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       {mobileMenuOpen && (
         <div className="md:hidden glass border-b border-border py-4 px-6 flex flex-col gap-4">
           <Link href="/#catalog" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Catalog</Link>
-          <Link href="/#custom-print" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Custom Print</Link>
+
           {user ? (
             <>
               <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Dashboard</Link>
@@ -410,7 +392,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     src={activeMediaUrl} 
                     alt={product.title} 
                     className="w-[85%] h-[85%] object-contain product-image-transition"
-                    style={getColorFilterStyle(selectedColor.name)}
                   />
                   
                   {/* Carousel Arrows */}
@@ -463,7 +444,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            {/* Color swatches */}
+            {/* Color swatches — only shown when viewing an STL model */}
+            {isSTL && (
             <div className="space-y-2.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary font-mono">
                 Color — <span className="text-foreground">{selectedColor.name}</span>
@@ -493,6 +475,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 })}
               </div>
             </div>
+            )}
 
             {/* Quantity + CTA */}
             <div className="space-y-3 pt-2">
@@ -582,7 +565,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <span>&copy; {new Date().getFullYear()} ENTE.PrintLabs. All rights reserved.</span>
           <div className="flex gap-6">
             <Link href="/#catalog" className="hover:text-foreground transition-colors">Catalog</Link>
-            <Link href="/#custom-print" className="hover:text-foreground transition-colors">Custom Print</Link>
+
             <a href="mailto:hello@enteprintlabs.com" className="hover:text-foreground transition-colors">Contact</a>
           </div>
         </div>
