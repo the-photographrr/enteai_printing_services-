@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total_price      REAL    NOT NULL,
   shipping_address TEXT    NOT NULL,
   status           TEXT    NOT NULL DEFAULT 'Pending',
+  color            TEXT,
   shipping_carrier TEXT,
   tracking_number  TEXT,
   created_at       TEXT    NOT NULL DEFAULT (datetime('now')),

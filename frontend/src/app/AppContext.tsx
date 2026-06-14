@@ -19,6 +19,16 @@ interface RegisterData {
   role?: 'visitor' | 'customer' | 'staff' | 'admin' | 'super_admin';
 }
 
+export interface CartItem {
+  productId: number;
+  productTitle: string;
+  productImage: string;
+  rate: number;
+  quantity: number;
+  colorName?: string;
+  colorHex?: string;
+}
+
 interface AppContextType {
   user: User | null;
   token: string | null;
@@ -29,6 +39,11 @@ interface AppContextType {
   logout: () => void;
   apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
   refreshUser: () => Promise<void>;
+  cart: CartItem[];
+  addToCart: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
+  removeFromCart: (productId: number, colorName?: string) => void;
+  updateCartQty: (productId: number, colorName: string | undefined, qty: number) => void;
+  clearCart: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -37,6 +52,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark'); // Dark mode by default for premium industrial look
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartLoaded, setCartLoaded] = useState(false);
+
+  // Load cart on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error('Error parsing cart from localStorage', e);
+      }
+    }
+    setCartLoaded(true);
+  }, []);
+
+  // Save cart to localStorage
+  useEffect(() => {
+    if (cartLoaded) {
+      localStorage.setItem('cart', JSON.stringify(cart));
+    }
+  }, [cart, cartLoaded]);
+
+  const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
+    setCart(prev => {
+      const existingIdx = prev.findIndex(
+        i => i.productId === item.productId && i.colorName === item.colorName
+      );
+      if (existingIdx > -1) {
+        const next = [...prev];
+        next[existingIdx].quantity += quantity;
+        return next;
+      }
+      return [...prev, { ...item, quantity }];
+    });
+  };
+
+  const removeFromCart = (productId: number, colorName?: string) => {
+    setCart(prev => prev.filter(i => !(i.productId === productId && i.colorName === colorName)));
+  };
+
+  const updateCartQty = (productId: number, colorName: string | undefined, qty: number) => {
+    setCart(prev =>
+      prev.map(i =>
+        i.productId === productId && i.colorName === colorName
+          ? { ...i, quantity: Math.max(1, qty) }
+          : i
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setCart([]);
+  };
 
   // API base — same-origin Next.js API routes (no CORS needed)
   const API_BASE = '/api';
@@ -157,7 +227,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AppContext.Provider value={{ user, token, theme, toggleTheme, login, register, logout, apiFetch, refreshUser }}>
+    <AppContext.Provider value={{ 
+      user, token, theme, toggleTheme, login, register, logout, apiFetch, refreshUser,
+      cart, addToCart, removeFromCart, updateCartQty, clearCart 
+    }}>
       {children}
     </AppContext.Provider>
   );

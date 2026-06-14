@@ -5,11 +5,14 @@ export const runtime = 'edge';
 import React, { useState, useEffect, use, useCallback } from 'react';
 import { useApp } from '../../AppContext';
 import {
-  Sun, Moon, Check, AlertCircle, ChevronRight, ChevronLeft,
-  Heart, ShoppingBag, X, Menu,
+  Check, AlertCircle, ChevronRight, ChevronLeft,
+  Heart, ShoppingBag, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import AuthModal from '@/components/AuthModal';
 
 const STLViewer = dynamic(() => import('@/components/STLViewer'), { ssr: false });
 
@@ -38,7 +41,7 @@ interface ProductDetail {
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { user, login, register, logout, theme, toggleTheme, apiFetch, refreshUser } = useApp();
+  const { user, apiFetch, refreshUser, addToCart } = useApp();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,15 +57,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [orderError, setOrderError] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  // Auth modal states
+  // Auth & Cart states
   const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<'customer' | 'staff'>('customer');
-  const [authError, setAuthError] = useState('');
+  const [cartAddedSuccess, setCartAddedSuccess] = useState(false);
 
   // Reassurance block data
   const reassuranceData = [
@@ -116,33 +113,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     });
   }, [fetchProductDetail]);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    if (authModal === 'login') {
-      const success = await login(username, password);
-      if (success) {
-        setAuthModal(null);
-        setUsername('');
-        setPassword('');
-      } else {
-        setAuthError('Invalid username or password.');
-      }
-    } else {
-      const success = await register({ username, password, email, phone, role });
-      if (success) {
-        const loggedIn = await login(username, password);
-        if (loggedIn) {
-          setAuthModal(null);
-          setUsername('');
-          setPassword('');
-          setEmail('');
-          setPhone('');
-        }
-      } else {
-        setAuthError('Registration failed. Username might be taken.');
-      }
-    }
+  const handleAddToCart = () => {
+    if (!product) return;
+    const isProductSTL = product.media?.some(m => m.toLowerCase().endsWith('.stl')) || product.image?.toLowerCase().endsWith('.stl');
+    addToCart({
+      productId: product.id,
+      productTitle: product.title,
+      productImage: product.image || (product.media && product.media[0]) || '',
+      rate: Number(product.rate || 0),
+      colorName: isProductSTL ? selectedColor.name : undefined,
+      colorHex: isProductSTL ? selectedColor.hex : undefined
+    }, quantity);
+    setCartAddedSuccess(true);
+    setTimeout(() => setCartAddedSuccess(false), 2000);
   };
 
   const handleOpenCheckout = () => {
@@ -181,7 +164,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       const payload = {
         product: product.id,
         quantity: quantity,
-        shipping_address: checkoutAddress
+        shipping_address: checkoutAddress,
+        color: product.media?.some(m => m.toLowerCase().endsWith('.stl')) || product.image?.toLowerCase().endsWith('.stl')
+          ? selectedColor.name
+          : undefined
       };
 
       const res = await apiFetch('/orders/', {
@@ -239,88 +225,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-300">
       
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-lg font-bold tracking-widest font-mono uppercase text-foreground">
-              ENTE.PrintLabs
-            </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm">
-              <Link href="/#catalog" className="text-text-secondary hover:text-foreground transition-colors font-mono">Catalog</Link>
-
-              {user && (
-                <Link href="/dashboard" className="text-text-secondary hover:text-foreground transition-colors font-mono">
-                  Dashboard
-                </Link>
-              )}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={toggleTheme} 
-              className="p-2 rounded-full border border-border hover:bg-card text-foreground transition-colors"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-
-            {user ? (
-              <div className="hidden md:flex items-center gap-4">
-                <span className="text-xs font-mono text-text-secondary">[{user.role.toUpperCase()}] {user.username}</span>
-                <Link href="/dashboard" className="px-4 py-2 text-xs font-mono border border-border hover:border-foreground rounded bg-foreground text-background transition-all">
-                  DASHBOARD
-                </Link>
-                <button onClick={logout} className="text-xs font-mono text-red-500 hover:underline">
-                  LOGOUT
-                </button>
-              </div>
-            ) : (
-              <div className="hidden md:flex items-center gap-2">
-                <button onClick={() => setAuthModal('login')} className="px-4 py-2 text-xs font-mono border border-border hover:border-foreground rounded transition-colors">
-                  LOGIN
-                </button>
-                <button onClick={() => setAuthModal('register')} className="px-4 py-2 text-xs font-mono bg-foreground text-background rounded hover:opacity-90 transition-opacity">
-                  REGISTER
-                </button>
-              </div>
-            )}
-
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 md:hidden rounded border border-border text-foreground"
-            >
-              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden glass border-b border-border py-4 px-6 flex flex-col gap-4">
-          <Link href="/#catalog" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Catalog</Link>
-
-          {user ? (
-            <>
-              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="text-sm font-mono">Dashboard</Link>
-              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="text-sm font-mono text-red-500 text-left">
-                LOGOUT
-              </button>
-            </>
-          ) : (
-            <div className="flex gap-2 pt-2 border-t border-border">
-              <button onClick={() => { setAuthModal('login'); setMobileMenuOpen(false); }} className="px-4 py-2 text-xs font-mono border border-border rounded">
-                LOGIN
-              </button>
-              <button onClick={() => { setAuthModal('register'); setMobileMenuOpen(false); }} className="px-4 py-2 text-xs font-mono bg-foreground text-background rounded">
-                REGISTER
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <Header setAuthModal={setAuthModal} />
 
 
       {/* Main product area */}
@@ -494,12 +399,24 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     className="px-4 font-bold text-foreground hover:bg-foreground/5 text-sm transition-colors"
                   >+</button>
                 </div>
-                {/* Add to cart */}
+                 {/* Add to cart */}
                 <button
-                  onClick={handleOpenCheckout}
-                  className="flex-grow h-11 bg-foreground/8 dark:bg-foreground/10 text-foreground border border-border text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-foreground/15 active:scale-[.98] transition-all flex items-center justify-center gap-2"
+                  onClick={handleAddToCart}
+                  className={`flex-grow h-11 border text-xs font-bold tracking-widest uppercase rounded-xl active:scale-[.98] transition-all flex items-center justify-center gap-2 ${
+                    cartAddedSuccess 
+                      ? 'bg-green-600 border-green-600 text-white' 
+                      : 'bg-foreground/8 dark:bg-foreground/10 text-foreground border-border hover:bg-foreground/15'
+                  }`}
                 >
-                  <ShoppingBag size={14} /> Add to Cart
+                  {cartAddedSuccess ? (
+                    <>
+                      <Check size={14} /> Added!
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag size={14} /> Add to Cart
+                    </>
+                  )}
                 </button>
               </div>
               {/* Buy now — primary CTA */}
@@ -559,126 +476,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
       </main>
 
-      {/* Footer */}
-      <footer className="mt-auto border-t border-border bg-card py-10 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-mono text-text-secondary">
-          <span>&copy; {new Date().getFullYear()} ENTE.PrintLabs. All rights reserved.</span>
-          <div className="flex gap-6">
-            <Link href="/#catalog" className="hover:text-foreground transition-colors">Catalog</Link>
+      <Footer />
 
-            <a href="mailto:hello@enteprintlabs.com" className="hover:text-foreground transition-colors">Contact</a>
-          </div>
-        </div>
-      </footer>
-
-      {/* Auth Modal Overlay */}
-      {authModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm border border-border rounded-xl bg-card p-6 relative">
-            <button 
-              onClick={() => setAuthModal(null)}
-              className="absolute top-4 right-4 p-1 rounded-full border border-border hover:bg-background text-foreground transition-colors"
-            >
-              <X size={14} />
-            </button>
-            <h3 className="text-lg font-bold font-mono text-foreground uppercase mb-6">
-              {authModal === 'login' ? 'Login' : 'Register'}
-            </h3>
-            
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div>
-                <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Username</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username"
-                  className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
-                />
-              </div>
-
-              {authModal === 'register' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Email</label>
-                    <input 
-                      type="email" 
-                      required 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Phone</label>
-                    <input 
-                      type="text" 
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Role Type</label>
-                    <select 
-                      value={role}
-                      onChange={(e) => setRole(e.target.value as 'customer' | 'staff')}
-                      className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
-                    >
-                      <option value="customer">Customer</option>
-                      <option value="staff">Production Staff</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-xs font-mono uppercase text-text-secondary mb-1">Password</label>
-                <input 
-                  type="password" 
-                  required 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="password"
-                  className="w-full px-3 py-2 bg-background border border-border rounded text-sm text-foreground focus:outline-none focus:border-foreground font-mono"
-                />
-              </div>
-
-              {authError && (
-                <div className="p-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono rounded">
-                  {authError}
-                </div>
-              )}
-
-              <button 
-                type="submit" 
-                className="w-full py-2 bg-foreground text-background text-xs font-mono tracking-widest uppercase rounded hover:opacity-90 transition-opacity"
-              >
-                {authModal === 'login' ? 'Login' : 'Create Account'}
-              </button>
-            </form>
-
-            <div className="mt-4 pt-4 border-t border-border text-center">
-              {authModal === 'login' ? (
-                <p className="text-[10px] font-mono text-text-secondary">
-                  Don&apos;t have an account?{' '}
-                  <button onClick={() => { setAuthModal('register'); setAuthError(''); }} className="text-foreground underline">
-                    Register
-                  </button>
-                </p>
-              ) : (
-                <p className="text-[10px] font-mono text-text-secondary">
-                  Already have an account?{' '}
-                  <button onClick={() => { setAuthModal('login'); setAuthError(''); }} className="text-foreground underline">
-                    Login
-                  </button>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <AuthModal authModal={authModal} setAuthModal={setAuthModal} />
 
       {/* Catalog Order Modal */}
       {checkoutModalOpen && (

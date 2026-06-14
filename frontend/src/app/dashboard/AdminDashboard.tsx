@@ -63,6 +63,7 @@ interface Order {
   customer_username?: string;
   shipping_address?: string;
   payment_proof?: string;
+  color?: string;
 }
 
 interface PrintRequestFile {
@@ -2127,6 +2128,7 @@ export default function AdminDashboard() {
                       <th className="p-4">Customer</th>
                       <th className="p-4">Product</th>
                       <th className="p-4">Quantity</th>
+                      <th className="p-4">Color</th>
                       <th className="p-4">Total Price</th>
                       <th className="p-4">Shipping Address</th>
                       <th className="p-4">Tracking Info</th>
@@ -2145,6 +2147,7 @@ export default function AdminDashboard() {
                           {ord.product_title}
                         </td>
                         <td className="p-4 font-bold">{ord.quantity}</td>
+                        <td className="p-4 font-mono uppercase text-xs">{ord.color || 'Default'}</td>
                         <td className="p-4 font-bold text-foreground">₹ {parseFloat(String(ord.total_price || '0')).toFixed(2)}</td>
                         <td className="p-4 max-w-xs truncate" title={ord.shipping_address}>
                           {ord.shipping_address}

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!payload) return NextResponse.json({ detail: 'Unauthorized.' }, { status: 401 });
 
   const db = getDB(req);
-  const { product, quantity, shipping_address } = await req.json();
+  const { product, quantity, shipping_address, color } = await req.json();
   if (!product || !shipping_address)
     return NextResponse.json({ detail: 'product and shipping_address are required.' }, { status: 400 });
 
@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
   const totalPrice = prod.rate * qty;
 
   const { meta } = await db.prepare(
-    'INSERT INTO orders (customer_id, product_id, quantity, total_price, shipping_address) VALUES (?, ?, ?, ?, ?)'
-  ).bind(Number(payload.sub), prod.id, qty, totalPrice, shipping_address).run();
+    'INSERT INTO orders (customer_id, product_id, quantity, total_price, shipping_address, color) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(Number(payload.sub), prod.id, qty, totalPrice, shipping_address, color || null).run();
 
   const created = await db.prepare('SELECT * FROM orders WHERE id = ?').bind(meta.last_row_id).first<OrderRow>();
   return NextResponse.json(created, { status: 201 });

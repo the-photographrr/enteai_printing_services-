@@ -2,16 +2,18 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Sun, Moon, Menu, X } from 'lucide-react';
+import { Sun, Moon, Menu, X, ShoppingBag } from 'lucide-react';
 import { useApp } from '@/app/AppContext';
+import CartModal from './CartModal';
 
 interface HeaderProps {
   setAuthModal: (modal: 'login' | 'register' | null) => void;
 }
 
 export default function Header({ setAuthModal }: HeaderProps) {
-  const { user, logout, theme, toggleTheme } = useApp();
+  const { user, logout, theme, toggleTheme, cart } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
 
   return (
     <>
@@ -32,6 +34,19 @@ export default function Header({ setAuthModal }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setCartOpen(true)}
+              className="p-2 rounded-full border border-border hover:bg-card text-foreground transition-colors relative cursor-pointer"
+              aria-label="Open Cart"
+            >
+              <ShoppingBag size={16} />
+              {cart.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full text-[9px] font-mono font-bold flex items-center justify-center">
+                  {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              )}
+            </button>
+
             <button 
               onClick={toggleTheme} 
               className="p-2 rounded-full border border-border hover:bg-card text-foreground transition-colors"
@@ -96,6 +111,7 @@ export default function Header({ setAuthModal }: HeaderProps) {
           )}
         </div>
       )}
+      <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} setAuthModal={setAuthModal} />
     </>
   );
 }

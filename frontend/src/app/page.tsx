@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/app/AppContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -29,7 +29,6 @@ interface CatalogProduct {
 export default function Home() {
   const { user, apiFetch, refreshUser } = useApp();
   
-  const catalogRef = useRef<HTMLDivElement>(null);
 
   const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
 

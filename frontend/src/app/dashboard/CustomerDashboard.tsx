@@ -46,6 +46,7 @@ interface CatalogOrder {
   shipping_address: string;
   shipping_carrier?: string;
   tracking_number?: string;
+  color?: string;
   created_at: string;
 }
 
@@ -576,7 +577,7 @@ export default function CustomerDashboard() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-background/50 border border-border p-4 rounded-lg">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-background/50 border border-border p-4 rounded-lg">
                   <div>
                     <span className="text-[10px] text-text-secondary uppercase block mb-1">Unit Price</span>
                     <span className="text-foreground font-bold">₹ {parseFloat(activeOrder.product_rate || '0').toFixed(2)}</span>
@@ -584,6 +585,10 @@ export default function CustomerDashboard() {
                   <div>
                     <span className="text-[10px] text-text-secondary uppercase block mb-1">Quantity</span>
                     <span className="text-foreground font-bold">{activeOrder.quantity} units</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-text-secondary uppercase block mb-1">Color</span>
+                    <span className="text-foreground font-bold uppercase">{activeOrder.color || 'Default'}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-text-secondary uppercase block mb-1">Total Price</span>
