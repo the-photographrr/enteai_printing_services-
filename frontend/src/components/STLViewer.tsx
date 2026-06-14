@@ -11,9 +11,21 @@ interface STLViewerProps {
   height?: string;
   modelColor?: string;
   onLoadDimensions?: (dimensions: { x: number; y: number; z: number }) => void;
+  transparentBg?: boolean;
+  showGrid?: boolean;
+  autoRotate?: boolean;
 }
 
-export default function STLViewer({ fileUrl, fileObject, height = '300px', modelColor, onLoadDimensions }: STLViewerProps) {
+export default function STLViewer({ 
+  fileUrl, 
+  fileObject, 
+  height = '300px', 
+  modelColor, 
+  onLoadDimensions,
+  transparentBg = false,
+  showGrid = true,
+  autoRotate = false
+}: STLViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +62,13 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
 
     // 1. Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(
-      document.documentElement.classList.contains('dark') ? 0x111111 : 0xf8f8f8
-    );
+    if (!transparentBg) {
+      scene.background = new THREE.Color(
+        document.documentElement.classList.contains('dark') ? 0x111111 : 0xf8f8f8
+      );
+    } else {
+      scene.background = null;
+    }
 
     // 2. Camera setup
     const camera = new THREE.PerspectiveCamera(45, width / heightPx, 0.1, 1000);
@@ -70,9 +86,14 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.maxPolarAngle = Math.PI / 2 + 0.1; // Don't go below grid too much
+    controls.enableZoom = !autoRotate; // disable zoom if it's meant to be a showcase
+    if (autoRotate) {
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 2.0;
+    }
 
     // 5. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, transparentBg ? 0.6 : 0.4);
     scene.add(ambientLight);
 
     const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -88,14 +109,16 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
     scene.add(pointLight);
 
     // 6. Grid Helper
-    const gridHelper = new THREE.GridHelper(
-      100,
-      20,
-      document.documentElement.classList.contains('dark') ? 0x444444 : 0xcccccc,
-      document.documentElement.classList.contains('dark') ? 0x222222 : 0xeeeeee
-    );
-    gridHelper.position.y = -10;
-    scene.add(gridHelper);
+    if (showGrid) {
+      const gridHelper = new THREE.GridHelper(
+        100,
+        20,
+        document.documentElement.classList.contains('dark') ? 0x444444 : 0xcccccc,
+        document.documentElement.classList.contains('dark') ? 0x222222 : 0xeeeeee
+      );
+      gridHelper.position.y = -10;
+      scene.add(gridHelper);
+    }
 
     // 7. STL Loader
     const loader = new STLLoader();
@@ -104,15 +127,19 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
     const loadGeometry = (geometry: THREE.BufferGeometry) => {
       // Material choice - premium industrial plastic matte
       const isDark = document.documentElement.classList.contains('dark');
+      const defaultColor = isDark ? 0xdddddd : 0x333333;
       const material = new THREE.MeshStandardMaterial({
-        color: modelColor ? new THREE.Color(modelColor) : (isDark ? 0xdddddd : 0x333333),
-        roughness: 0.6,
-        metalness: 0.1,
+        color: modelColor ? new THREE.Color(modelColor) : defaultColor,
+        roughness: 0.5,
+        metalness: 0.2,
         flatShading: true,
       });
 
       geometry.computeVertexNormals();
       mesh = new THREE.Mesh(geometry, material);
+
+      // Rotate to make Z-up models stand upright in Three.js (Y-up)
+      mesh.rotation.x = -Math.PI / 2;
 
       // Center model
       geometry.center();
@@ -126,8 +153,8 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
         mesh.position.y = -10 + radius;
         scene.add(mesh);
 
-        // Adjust camera position based on model size
-        camera.position.set(radius * 1.5, radius * 1.5, radius * 2.5);
+        // Adjust camera position based on model size for a front-facing perspective
+        camera.position.set(0, mesh.position.y + radius * 0.2, radius * 2.5);
         camera.lookAt(mesh.position);
         controls.target.copy(mesh.position);
       }
@@ -190,8 +217,8 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
       animationFrameId = requestAnimationFrame(animate);
       controls.update();
       
-      // Auto rotate slightly if user is idle
-      if (mesh && (controls as unknown as { state: number }).state === -1) {
+      // Auto rotate slightly if user is idle and autoRotate is not handled by controls
+      if (!autoRotate && mesh && (controls as unknown as { state: number }).state === -1) {
         mesh.rotation.y += 0.005;
       }
       
@@ -218,18 +245,18 @@ export default function STLViewer({ fileUrl, fileObject, height = '300px', model
       }
       geometryRefCleanup(mesh);
     };
-  }, [fileUrl, fileObject, modelColor]);
+  }, [fileUrl, fileObject, modelColor, transparentBg, showGrid, autoRotate]);
 
   return (
-    <div className="relative w-full rounded-lg overflow-hidden border border-border bg-card" style={{ height }}>
+    <div className={`relative w-full overflow-hidden ${transparentBg ? '' : 'rounded-lg border border-border bg-card'}`} style={{ height }}>
       {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm z-10">
-          <div className="w-8 h-8 rounded-full border-2 border-foreground border-t-transparent animate-spin mb-2"></div>
-          <span className="text-xs text-text-secondary uppercase tracking-widest font-mono">Loading 3D Mesh...</span>
+        <div className={`absolute inset-0 flex flex-col items-center justify-center ${transparentBg ? 'bg-transparent' : 'bg-card/80 backdrop-blur-sm'} z-10`}>
+          <div className={`w-8 h-8 rounded-full border-2 ${transparentBg ? 'border-foreground/20' : 'border-foreground'} border-t-transparent animate-spin mb-2`}></div>
+          <span className={`text-xs ${transparentBg ? 'text-foreground/50' : 'text-text-secondary'} uppercase tracking-widest font-mono`}>Loading 3D Mesh...</span>
         </div>
       )}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-card text-center z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10">
           <span className="text-xs text-red-500 font-mono mb-2">Error: {error}</span>
           <span className="text-xs text-text-secondary uppercase tracking-widest font-mono">3D View Unavailable</span>
         </div>

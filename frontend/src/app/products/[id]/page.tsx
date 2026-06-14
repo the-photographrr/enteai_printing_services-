@@ -9,8 +9,10 @@ import {
   Heart, ShoppingBag, X, Menu,
 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 
-const R2_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '';
+const STLViewer = dynamic(() => import('@/components/STLViewer'), { ssr: false });
+
 
 
 const COLORS = [
@@ -30,6 +32,7 @@ interface ProductDetail {
   category: string;
   rate: string | number;
   image?: string;
+  media?: string[];
   status: string;
 }
 
@@ -243,19 +246,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const imageUrl = product.image
-    ? (product.image.startsWith('http') ? product.image : `${R2_BASE}${product.image}`)
-    : '';
+  const mediaList = product.media && product.media.length > 0 
+    ? product.media 
+    : (product.image ? [product.image] : []);
 
-  // Generate mock thumbnails: main image, angle, and a few color-shifted previews
-  const galleryThumbnails = [
-    { name: 'Red View', filter: getColorFilterStyle('red') },
-    { name: 'Side View', filter: { ...getColorFilterStyle('red'), transform: 'scaleX(-1)' } },
-    { name: 'Yellow View', filter: getColorFilterStyle('yellow') },
-    { name: 'White View', filter: getColorFilterStyle('white') },
-    { name: 'Orange View', filter: getColorFilterStyle('orange') },
-    { name: 'Green View', filter: getColorFilterStyle('green') }
-  ];
+  const activeMediaUrl = mediaList[activeThumbnailIdx] || mediaList[0] || '';
+  const isSTL = activeMediaUrl.toLowerCase().endsWith('.stl');
 
   return (
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-300">
@@ -363,69 +359,79 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <div className="lg:col-span-8 flex flex-col-reverse md:flex-row gap-4">
             
             {/* Gallery Thumbnail Bar - positioned next to image */}
-            <div className="flex flex-row md:flex-col gap-3 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0 select-none justify-start">
-              {galleryThumbnails.map((thumb, idx) => {
-                const isActive = activeThumbnailIdx === idx;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setActiveThumbnailIdx(idx);
-                      // Update selected color swatch matching thumbnail name prefix
-                      if (thumb.name.startsWith('Yellow')) setSelectedColor(COLORS[1]);
-                      else if (thumb.name.startsWith('White')) setSelectedColor(COLORS[2]);
-                      else if (thumb.name.startsWith('Black')) setSelectedColor(COLORS[3]);
-                      else if (thumb.name.startsWith('Orange')) setSelectedColor(COLORS[4]);
-                      else if (thumb.name.startsWith('Green')) setSelectedColor(COLORS[5]);
-                      else setSelectedColor(COLORS[0]);
-                    }}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 flex-shrink-0 bg-neutral-50 dark:bg-[#111111] overflow-hidden p-1 transition-all ${
-                      isActive ? 'border-foreground scale-105 shadow-sm' : 'border-border hover:border-text-secondary'
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={imageUrl} 
-                      alt={`Thumbnail ${idx}`} 
-                      className="w-full h-full object-contain"
-                      style={thumb.filter}
-                    />
-                  </button>
-                );
-              })}
-            </div>
+            {mediaList.length > 1 && (
+              <div className="flex flex-row md:flex-col gap-3 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0 select-none justify-start">
+                {mediaList.map((mediaItem, idx) => {
+                  const isActive = activeThumbnailIdx === idx;
+                  const isThumbSTL = mediaItem.toLowerCase().endsWith('.stl');
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveThumbnailIdx(idx)}
+                      className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 flex-shrink-0 bg-neutral-50 dark:bg-[#111111] overflow-hidden p-1 transition-all ${
+                        isActive ? 'border-foreground scale-105 shadow-sm' : 'border-border hover:border-text-secondary'
+                      }`}
+                    >
+                      {isThumbSTL ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-cyan-950/10">
+                          <span className="text-cyan-500 font-bold text-[8px] uppercase tracking-wider text-center">3D<br/>STL</span>
+                        </div>
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img 
+                          src={mediaItem} 
+                          alt={`Thumbnail ${idx}`} 
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Main Image Slider Screen */}
             <div className="flex-grow relative aspect-square rounded-3xl border border-border bg-neutral-50 dark:bg-[#0c0c0c] overflow-hidden flex items-center justify-center group shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={imageUrl} 
-                alt={product.title} 
-                className="w-[85%] h-[85%] object-contain product-image-transition"
-                style={{
-                  ...getColorFilterStyle(selectedColor.name),
-                  transform: activeThumbnailIdx === 1 ? 'scaleX(-1)' : 'none'
-                }}
-              />
-              
-              {/* Carousel Arrows */}
-              <button 
-                onClick={() => {
-                  setActiveThumbnailIdx(prev => (prev === 0 ? galleryThumbnails.length - 1 : prev - 1));
-                }}
-                className="absolute left-4 w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 border border-border/10 cursor-pointer"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              
-              <button 
-                onClick={() => {
-                  setActiveThumbnailIdx(prev => (prev === galleryThumbnails.length - 1 ? 0 : prev + 1));
-                }}
-                className="absolute right-4 w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 border border-border/10 cursor-pointer"
-              >
-                <ChevronRight size={18} />
-              </button>
+              {isSTL ? (
+                <div className="w-full h-full">
+                  <STLViewer 
+                    fileUrl={activeMediaUrl}
+                    height="100%"
+                    transparentBg={true}
+                    showGrid={true}
+                    autoRotate={true}
+                    modelColor={selectedColor.hex}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={activeMediaUrl} 
+                    alt={product.title} 
+                    className="w-[85%] h-[85%] object-contain product-image-transition"
+                    style={getColorFilterStyle(selectedColor.name)}
+                  />
+                  
+                  {/* Carousel Arrows */}
+                  {mediaList.length > 1 && (
+                    <>
+                      <button 
+                        onClick={() => setActiveThumbnailIdx(prev => (prev === 0 ? mediaList.length - 1 : prev - 1))}
+                        className="absolute left-4 w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 border border-border/10 cursor-pointer"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setActiveThumbnailIdx(prev => (prev === mediaList.length - 1 ? 0 : prev + 1))}
+                        className="absolute right-4 w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 border border-border/10 cursor-pointer"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
 
               {/* Heart Button Overlay */}
               <button className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center text-foreground border border-border/10 hover:scale-105 transition-all">
@@ -470,8 +476,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                       key={color.name}
                       onClick={() => {
                         setSelectedColor(color);
-                        const matchIdx = galleryThumbnails.findIndex(t => t.name.startsWith(color.name));
-                        setActiveThumbnailIdx(matchIdx !== -1 ? matchIdx : 0);
                       }}
                       title={color.name}
                       className={`w-8 h-8 rounded-full transition-all border-2 flex items-center justify-center ${

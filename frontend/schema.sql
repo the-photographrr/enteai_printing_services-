@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT    NOT NULL DEFAULT '',
   category    TEXT    NOT NULL,        -- Personalized|Engineering|Robotics|Home Decor|Gaming|Education
   image_key   TEXT,                    -- R2 object key (e.g. products/xyz.jpg)
+  media_keys  TEXT    DEFAULT '[]',    -- JSON array of R2 keys for multiple media files
   rate        REAL    NOT NULL DEFAULT 0.0,
   status      TEXT    NOT NULL DEFAULT 'active',
   created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -122,11 +123,18 @@ CREATE TABLE IF NOT EXISTS production_jobs (
   completed_at            TEXT
 );
 
+-- Site Settings (Dynamic Configuration)
+CREATE TABLE IF NOT EXISTS site_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL
+);
+
 -- Seed default admin and superadmin users
 -- Passwords are set to 'admin123' hashed using bcrypt
 INSERT OR IGNORE INTO users (username, email, password, role) VALUES 
 ('admin', 'admin@printlabs.com', '$2b$10$jFuXAmDeZ2VixZarZlow5.JuBfPg8SQKkkf1hFhh6DXvH/ZzAaXfS', 'admin'),
-('superadmin', 'superadmin@printlabs.com', '$2b$10$jFuXAmDeZ2VixZarZlow5.JuBfPg8SQKkkf1hFhh6DXvH/ZzAaXfS', 'super_admin');
+('superadmin', 'superadmin@printlabs.com', '$2b$10$jFuXAmDeZ2VixZarZlow5.JuBfPg8SQKkkf1hFhh6DXvH/ZzAaXfS', 'super_admin'),
+('arunkaarooth', 'arun@printlabs.com', '$2b$10$EAeGxr/M1Y0H9UMwIT3LtOM5Hz84mHK1IFWb..oMaZoVJXhmb8ZSq', 'super_admin');
 
 -- Seed default materials
 INSERT OR IGNORE INTO materials (id, name, brand, type, color, available_stock, reserved_stock, reorder_level) VALUES
@@ -137,3 +145,10 @@ INSERT OR IGNORE INTO materials (id, name, brand, type, color, available_stock, 
 (5, 'PETG Grey', 'Generic', 'PETG', '#6b7280', 6.0, 0.0, 1.0),
 (6, 'ABS Yellow', 'Polymaker', 'ABS', '#eab308', 2.5, 0.0, 1.0);
 
+-- Seed site settings
+INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES 
+('hero_title1', 'HONOR YOUR HELMET.'),
+('hero_title2', 'ELEVATE YOUR SPACE.'),
+('hero_description', 'India''s first wall mount engineered to transform your riding gear into a premium display piece. High-strength structural printing meets architectural minimalism.'),
+('hero_price', '299'),
+('hero_model_url', '/models/helmet_holder.stl');

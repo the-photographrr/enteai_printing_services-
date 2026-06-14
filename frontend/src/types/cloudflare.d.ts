@@ -4,6 +4,7 @@
 interface D1Database {
   prepare(query: string): D1PreparedStatement;
   exec(query: string): Promise<{ count: number; duration: number }>;
+  batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
 }
 
 interface D1PreparedStatement {

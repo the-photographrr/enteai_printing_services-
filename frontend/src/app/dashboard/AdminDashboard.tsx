@@ -26,6 +26,8 @@ interface Product {
   rate: number;
   status: string;
   image?: string;
+  image_key?: string;
+  media?: string[];
 }
 
 interface KPIs {
@@ -140,7 +142,15 @@ const FILAMENT_COLORS = [
 
 export default function AdminDashboard() {
   const { user, apiFetch } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'quotes' | 'crm' | 'production' | 'inventory' | 'orders' | 'products' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'quotes' | 'crm' | 'production' | 'inventory' | 'orders' | 'products' | 'users' | 'settings'>('overview');
+
+  // Hero Settings
+  const [heroSettings, setHeroSettings] = useState<Record<string, string>>({
+    hero_title1: '', hero_title2: '', hero_description: '', hero_price: '', hero_model_url: ''
+  });
+
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState('');
 
   // Products management states
   const [products, setProducts] = useState<Product[]>([]);
@@ -150,6 +160,8 @@ export default function AdminDashboard() {
   const [newProdCategory, setNewProdCategory] = useState('Personalized');
   const [newProdRate, setNewProdRate] = useState(0.00);
   const [newProdImage, setNewProdImage] = useState<File | null>(null);
+  const [newProdMedia, setNewProdMedia] = useState<File[]>([]);
+  const [newProdPath, setNewProdPath] = useState('');
 
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editProdTitle, setEditProdTitle] = useState('');
@@ -157,6 +169,8 @@ export default function AdminDashboard() {
   const [editProdCategory, setEditProdCategory] = useState('Personalized');
   const [editProdRate, setEditProdRate] = useState(0.00);
   const [editProdImage, setEditProdImage] = useState<File | null>(null);
+  const [editProdMedia, setEditProdMedia] = useState<File[]>([]);
+  const [editProdPath, setEditProdPath] = useState('');
   const [editProdStatus, setEditProdStatus] = useState('active');
 
   // KPI & activity states
@@ -290,8 +304,47 @@ export default function AdminDashboard() {
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'users') fetchUsers();
+    if (activeTab === 'settings') fetchSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  async function fetchSettings() {
+    try {
+      const res = await apiFetch('/settings');
+      if (res.ok) {
+        setHeroSettings(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleSaveSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingSettings(true);
+    setSettingsMessage('');
+    try {
+      const formData = new FormData();
+      Object.entries(heroSettings).forEach(([key, value]) => formData.append(key, value));
+
+
+      const res = await apiFetch('/settings', {
+        method: 'PATCH',
+        body: formData
+      });
+      if (res.ok) {
+        setSettingsMessage('Settings saved successfully!');
+        setTimeout(() => setSettingsMessage(''), 3000);
+      } else {
+        const errData = await res.json();
+        setSettingsMessage(`Error: ${errData.detail || 'Failed to save'}`);
+      }
+    } catch (err) {
+      setSettingsMessage('Network error.');
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   async function fetchOverviewData() {
     try {
@@ -489,7 +542,10 @@ export default function AdminDashboard() {
     formData.append('status', 'active');
     if (newProdImage) {
       formData.append('image', newProdImage);
+    } else if (newProdPath) {
+      formData.append('image_key', newProdPath);
     }
+    newProdMedia.forEach(f => formData.append('media', f));
     try {
       const res = await apiFetch('/products/', {
         method: 'POST',
@@ -501,7 +557,9 @@ export default function AdminDashboard() {
         setNewProdCategory('Personalized');
         setNewProdRate(0.00);
         setNewProdImage(null);
-        const fileInput = document.getElementById('new-prod-image') as HTMLInputElement;
+        setNewProdMedia([]);
+        setNewProdPath('');
+        const fileInput = document.getElementById('new-prod-media') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
         fetchProducts();
       }
@@ -533,7 +591,10 @@ export default function AdminDashboard() {
     formData.append('status', editProdStatus);
     if (editProdImage) {
       formData.append('image', editProdImage);
+    } else if (editProdPath) {
+      formData.append('image_key', editProdPath);
     }
+    editProdMedia.forEach(f => formData.append('media', f));
     try {
       const res = await apiFetch(`/products/${productId}/`, {
         method: 'PATCH',
@@ -542,6 +603,8 @@ export default function AdminDashboard() {
       if (res.ok) {
         setEditingProductId(null);
         setEditProdImage(null);
+        setEditProdMedia([]);
+        setEditProdPath('');
         fetchProducts();
       }
     } catch (err) {
@@ -883,14 +946,24 @@ export default function AdminDashboard() {
           </button>
           {/* Users — admin/super_admin only */}
           {user && ['admin', 'super_admin'].includes(user.role) && (
-            <button 
-              onClick={() => setActiveTab('users')}
-              className={`px-4 py-2.5 rounded text-left transition-all uppercase whitespace-nowrap ${
-                activeTab === 'users' ? 'bg-foreground text-background font-bold' : 'text-text-secondary hover:bg-card'
-              }`}
-            >
-              User Management
-            </button>
+            <>
+              <button 
+                onClick={() => setActiveTab('users')}
+                className={`px-4 py-2.5 rounded text-left transition-all uppercase whitespace-nowrap ${
+                  activeTab === 'users' ? 'bg-foreground text-background font-bold' : 'text-text-secondary hover:bg-card'
+                }`}
+              >
+                User Management
+              </button>
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={`px-4 py-2.5 rounded text-left transition-all uppercase whitespace-nowrap ${
+                  activeTab === 'settings' ? 'bg-foreground text-background font-bold' : 'text-text-secondary hover:bg-card'
+                }`}
+              >
+                Hero Settings
+              </button>
+            </>
           )}
         </nav>
       </aside>
@@ -2175,33 +2248,55 @@ export default function AdminDashboard() {
                           {/* Image section */}
                           <div className="relative w-full h-32 bg-background border-b border-border flex items-center justify-center overflow-hidden">
                             {isEditing ? (
-                              <div className="absolute inset-0 p-3 bg-card/90 flex flex-col justify-center items-center gap-2">
-                                <label className="text-[9px] text-text-secondary uppercase">Product Image</label>
+                              <div className="absolute inset-0 p-3 bg-card/90 flex flex-col justify-center items-center gap-1.5 overflow-y-auto">
+                                <label className="text-[9px] text-text-secondary uppercase">Upload Image or STL</label>
                                 <input 
                                   type="file"
-                                  accept="image/*"
+                                  multiple
+                                  accept="image/*,.stl"
                                   onChange={(e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                      setEditProdImage(e.target.files[0]);
+                                    if (e.target.files && e.target.files.length > 0) {
+                                      setEditProdMedia(Array.from(e.target.files));
+                                      setEditProdPath(''); // Clear path if file selected
                                     }
                                   }}
                                   className="w-full text-[10px] cursor-pointer"
                                 />
-                                {editProdImage ? (
-                                  <p className="text-[8px] text-green-500 font-bold">Image selected: {editProdImage.name}</p>
-                                ) : (
-                                  <p className="text-[8px] text-text-secondary">Upload file to replace</p>
-                                )}
+                                <div className="w-full flex items-center gap-1 text-[8px] text-text-secondary uppercase">
+                                  <span className="h-px bg-border flex-1" />
+                                  <span>OR Path</span>
+                                  <span className="h-px bg-border flex-1" />
+                                </div>
+                                <input 
+                                  type="text"
+                                  value={editProdPath}
+                                  onChange={(e) => {
+                                    setEditProdPath(e.target.value);
+                                    if (e.target.value) {
+                                      setEditProdMedia([]);
+                                      setEditProdImage(null);
+                                    }
+                                  }}
+                                  placeholder="e.g. /models/lipstick_case.stl"
+                                  className="w-full px-2 py-0.5 bg-background border border-border rounded text-[9px] focus:outline-none focus:border-foreground text-center"
+                                />
                               </div>
                             ) : (
                               <>
                                 {prod.image ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img 
-                                    src={prod.image.startsWith('http') ? prod.image : `${R2_BASE}${prod.image}`}
-                                    alt={prod.title} 
-                                    className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-                                  />
+                                  prod.image.toLowerCase().endsWith('.stl') ? (
+                                    <div className="w-full h-full bg-cyan-950/10 flex flex-col items-center justify-center p-3 text-center border-b border-border/10">
+                                      <span className="text-cyan-500 font-bold text-[10px] uppercase tracking-wider mb-1">3D STL MODEL</span>
+                                      <span className="text-[9px] text-text-secondary font-mono truncate max-w-[150px]">{prod.image.split('/').pop()}</span>
+                                    </div>
+                                  ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img 
+                                      src={prod.image.startsWith('http') ? prod.image : `${R2_BASE}${prod.image}`}
+                                      alt={prod.title} 
+                                      className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                                    />
+                                  )
                                 ) : (
                                   <div className="text-[9px] text-text-secondary uppercase">No Image</div>
                                 )}
@@ -2337,6 +2432,7 @@ export default function AdminDashboard() {
                                     setEditProdRate(prod.rate || 0);
                                     setEditProdStatus(prod.status || 'active');
                                     setEditProdImage(null);
+                                    setEditProdPath(prod.image_key || prod.image || '');
                                   }}
                                   className="px-2.5 py-1 text-[10px] uppercase font-bold border border-border rounded bg-foreground/5 hover:bg-foreground/10 text-foreground transition-all flex items-center gap-1 cursor-pointer"
                                 >
@@ -2418,19 +2514,54 @@ export default function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] text-text-secondary uppercase mb-1">Product Image *</label>
+                    <label className="block text-[10px] text-text-secondary uppercase mb-1">Product Media (Images / 3D STL Models)</label>
                     <input 
                       type="file" 
-                      required
-                      accept="image/*"
-                      id="new-prod-image"
+                      multiple
+                      required={!newProdPath && newProdMedia.length === 0 && !newProdImage}
+                      accept="image/*,.stl"
+                      id="new-prod-media"
                       onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setNewProdImage(e.target.files[0]);
+                        if (e.target.files && e.target.files.length > 0) {
+                          setNewProdMedia(Array.from(e.target.files));
+                          setNewProdImage(e.target.files[0]); // For backward compat visual
+                          setNewProdPath('');
                         }
                       }}
-                      className="w-full text-xs"
+                      className="w-full text-xs text-foreground bg-background border border-border rounded p-2 focus:outline-none cursor-pointer"
                     />
+                    
+                    {newProdMedia.length > 0 && (
+                      <div className="mt-2 text-[10px] text-text-secondary flex flex-wrap gap-1">
+                        {newProdMedia.map((f, idx) => (
+                          <span key={idx} className="bg-foreground/10 px-2 py-1 rounded">{f.name}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-[8px] text-text-secondary my-2 uppercase font-bold tracking-wider">
+                      <span className="h-px bg-border flex-1" />
+                      <span>OR enter path manually</span>
+                      <span className="h-px bg-border flex-1" />
+                    </div>
+
+                    <input 
+                      type="text"
+                      required={!newProdPath && !newProdImage}
+                      value={newProdPath}
+                      onChange={(e) => {
+                        setNewProdPath(e.target.value);
+                        if (e.target.value) {
+                          setNewProdImage(null);
+                          setNewProdMedia([]);
+                          const fileInput = document.getElementById('new-prod-media') as HTMLInputElement;
+                          if (fileInput) fileInput.value = '';
+                        }
+                      }}
+                      placeholder="e.g. /models/lipstick_case_keychain.stl"
+                      className="w-full px-3 py-2 bg-background border border-border rounded focus:outline-none focus:border-foreground"
+                    />
+                    <p className="text-[10px] text-text-secondary mt-1">Upload a preview file (.stl, .jpg, .png) or specify a path directly.</p>
                   </div>
 
                   <button 
@@ -2782,6 +2913,87 @@ export default function AdminDashboard() {
                   className="w-full py-2 bg-foreground text-background font-bold uppercase tracking-wider rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity mt-2"
                 >
                   {savingUser ? 'Saving...' : 'Save Changes'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* TAB 9: SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="max-w-4xl space-y-6">
+            <h2 className="text-2xl font-black uppercase tracking-tight text-foreground">Hero Section Settings</h2>
+            <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
+              {settingsMessage && (
+                <div className={`p-4 mb-6 rounded text-sm font-bold uppercase tracking-widest ${settingsMessage.includes('Error') ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                  {settingsMessage}
+                </div>
+              )}
+              <form onSubmit={handleSaveSettings} className="space-y-6">
+                <div>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold">Hero Title Line 1</label>
+                  <input
+                    type="text"
+                    required
+                    value={heroSettings.hero_title1}
+                    onChange={e => setHeroSettings({...heroSettings, hero_title1: e.target.value})}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold">Hero Title Line 2 (Gradient)</label>
+                  <input
+                    type="text"
+                    required
+                    value={heroSettings.hero_title2}
+                    onChange={e => setHeroSettings({...heroSettings, hero_title2: e.target.value})}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold">Hero Description</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={heroSettings.hero_description}
+                    onChange={e => setHeroSettings({...heroSettings, hero_description: e.target.value})}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold">Hero Price (₹)</label>
+                  <input
+                    type="text"
+                    required
+                    value={heroSettings.hero_price}
+                    onChange={e => setHeroSettings({...heroSettings, hero_price: e.target.value})}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold">Hero 3D Model (STL)</label>
+                  <select
+                    value={heroSettings.hero_model_url}
+                    onChange={e => setHeroSettings({...heroSettings, hero_model_url: e.target.value})}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground"
+                  >
+                    <option value="">-- Select an STL File --</option>
+                    {Array.from(new Set([
+                      heroSettings.hero_model_url,
+                      ...products.flatMap(p => [
+                        ...(p.image && p.image.toLowerCase().endsWith('.stl') ? [p.image] : []),
+                        ...(p.media ? p.media.filter(m => m.toLowerCase().endsWith('.stl')) : [])
+                      ])
+                    ].filter(Boolean))).map((stlUrl, idx) => (
+                      <option key={idx} value={stlUrl as string}>{(stlUrl as string).split('/').pop()}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  className="px-6 py-3 bg-foreground text-background font-bold uppercase tracking-widest rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {savingSettings ? 'Saving...' : 'Save Settings'}
                 </button>
               </form>
             </div>

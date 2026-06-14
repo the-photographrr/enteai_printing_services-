@@ -6,8 +6,37 @@ import { verifyToken, extractBearer } from '@/lib/auth';
 export const runtime = 'edge';
 
 const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '';
-type ProductRow = { id: number; title: string; description: string; category: string; image_key: string | null; rate: number; status: string; created_at: string };
-const withImage = (p: ProductRow) => ({ ...p, image: p.image_key ? (R2_PUBLIC ? `${R2_PUBLIC}/${p.image_key}` : `/api/media/${p.image_key}`) : null });
+type ProductRow = { id: number; title: string; description: string; category: string; image_key: string | null; media_keys: string | null; rate: number; status: string; created_at: string };
+
+const withImage = (p: ProductRow) => {
+  const finalP = { ...p, image: null as string | null, media: [] as string[] };
+  
+  if (p.image_key) {
+    if (p.image_key.startsWith('http://') || p.image_key.startsWith('https://') || p.image_key.startsWith('/')) {
+      finalP.image = p.image_key;
+    } else {
+      finalP.image = R2_PUBLIC ? `${R2_PUBLIC}/${p.image_key}` : `/api/media/${p.image_key}`;
+    }
+  }
+
+  if (p.media_keys) {
+    try {
+      const keys = JSON.parse(p.media_keys);
+      finalP.media = keys.map((key: string) => {
+        if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('/')) return key;
+        return R2_PUBLIC ? `${R2_PUBLIC}/${key}` : `/api/media/${key}`;
+      });
+    } catch {
+      finalP.media = [];
+    }
+  }
+
+  if (!finalP.image && finalP.media.length > 0) {
+    finalP.image = finalP.media[0];
+  }
+
+  return finalP;
+};
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,22 +61,63 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const rateVal = formData.get('rate') as string | null;
   const rate = rateVal !== null ? parseFloat(rateVal) : null;
   const status = formData.get('status') as string | null;
+  
   const imageFile = formData.get('image') as File | null;
+  const imageKeyParam = formData.get('image_key') as string | null;
+
+  const mediaFiles = formData.getAll('media') as File[];
+  const mediaKeysParam = formData.get('media_keys') as string | null;
 
   let imageKey: string | null = null;
   let hasNewImage = false;
+  let hasNewMedia = false;
+  let mediaKeys: string[] = [];
 
-  if (imageFile && imageFile.size > 0) {
-    let r2: R2Bucket | null = null;
-    try { r2 = getR2(req); } catch { /* R2 optional in dev */ }
-    if (r2) {
-      imageKey = `products/${crypto.randomUUID()}-${imageFile.name.replace(/\s+/g, '_')}`;
-      await r2.put(imageKey, await imageFile.arrayBuffer(), {
-        httpMetadata: { contentType: imageFile.type || 'image/jpeg' }
+  // Fetch current product to merge media keys if necessary
+  const currentProduct = await db.prepare('SELECT * FROM products WHERE id = ?').bind(Number(id)).first<ProductRow>();
+  if (!currentProduct) return NextResponse.json({ detail: 'Not found.' }, { status: 404 });
+
+  if (mediaKeysParam !== null) {
+    try {
+      mediaKeys = JSON.parse(mediaKeysParam);
+      hasNewMedia = true;
+    } catch { /* ignore */ }
+  } else if (currentProduct.media_keys) {
+    try {
+      mediaKeys = JSON.parse(currentProduct.media_keys);
+    } catch { /* ignore */ }
+  }
+
+  let r2: R2Bucket | null = null;
+  try { r2 = getR2(req); } catch { /* R2 optional in dev */ }
+
+  if (imageFile && imageFile.size > 0 && r2) {
+    imageKey = `products/${crypto.randomUUID()}-${imageFile.name.replace(/\\s+/g, '_')}`;
+    await r2.put(imageKey, await imageFile.arrayBuffer(), {
+      httpMetadata: { contentType: imageFile.type || 'image/jpeg' }
+    });
+    hasNewImage = true;
+    if (!mediaKeys.includes(imageKey)) mediaKeys.unshift(imageKey);
+    hasNewMedia = true;
+  } else if (imageKeyParam !== null) {
+    imageKey = imageKeyParam;
+    hasNewImage = true;
+    if (imageKey && !mediaKeys.includes(imageKey)) mediaKeys.unshift(imageKey);
+    hasNewMedia = true;
+  }
+
+  for (const file of mediaFiles) {
+    if (file && file.size > 0 && r2) {
+      const key = `products/${crypto.randomUUID()}-${file.name.replace(/\\s+/g, '_')}`;
+      await r2.put(key, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type || 'application/octet-stream' }
       });
-      hasNewImage = true;
+      mediaKeys.push(key);
+      hasNewMedia = true;
     }
   }
+
+  mediaKeys = Array.from(new Set(mediaKeys)); // ensure uniqueness
 
   await db.prepare(
     `UPDATE products SET
@@ -56,7 +126,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
        category = COALESCE(?, category),
        rate = COALESCE(?, rate),
        status = COALESCE(?, status),
-       image_key = CASE WHEN ? = 1 THEN ? ELSE image_key END
+       image_key = CASE WHEN ? = 1 THEN ? ELSE image_key END,
+       media_keys = CASE WHEN ? = 1 THEN ? ELSE media_keys END
      WHERE id = ?`
   ).bind(
     title,
@@ -66,6 +137,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     status,
     hasNewImage ? 1 : 0,
     imageKey,
+    hasNewMedia ? 1 : 0,
+    JSON.stringify(mediaKeys),
     Number(id)
   ).run();
 

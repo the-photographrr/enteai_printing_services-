@@ -281,9 +281,6 @@ export default function CustomerDashboard() {
             {requests.length === 0 ? (
               <div className="border border-border border-dashed rounded-lg p-12 text-center bg-card/50">
                 <p className="text-xs text-text-secondary font-mono">No requests submitted yet.</p>
-                <Link href="/#custom-print" className="mt-4 inline-block px-4 py-2 bg-foreground text-background text-[10px] font-mono tracking-wider uppercase rounded">
-                  Create First Request
-                </Link>
               </div>
             ) : (
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
