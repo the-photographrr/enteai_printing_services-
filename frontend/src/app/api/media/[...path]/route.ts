@@ -33,6 +33,25 @@ export async function GET(
     const { path } = await params;
     const key = path.join('/');
 
+    if (key === 'list-stls') {
+      let r2;
+      try {
+        r2 = getR2(req);
+      } catch {
+        return NextResponse.json([]);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const objects = await (r2 as any).list();
+      const stlKeys = objects.objects
+        .map((o: { key: string }) => o.key)
+        .filter((k: string) => k.toLowerCase().endsWith('.stl'))
+        .map((k: string) => {
+          const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '';
+          return R2_PUBLIC ? `${R2_PUBLIC}/${k}` : `/api/media/${k}`;
+        });
+      return NextResponse.json(stlKeys);
+    }
+
     let r2;
     try {
       r2 = getR2(req);

@@ -152,6 +152,7 @@ export default function AdminDashboard() {
 
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
+  const [r2StlFiles, setR2StlFiles] = useState<string[]>([]);
 
   // Products management states
   const [products, setProducts] = useState<Product[]>([]);
@@ -314,6 +315,10 @@ export default function AdminDashboard() {
       const res = await apiFetch('/settings');
       if (res.ok) {
         setHeroSettings(await res.json());
+      }
+      const stlRes = await apiFetch('/media/list-stls');
+      if (stlRes.ok) {
+        setR2StlFiles(await stlRes.json());
       }
     } catch (err) {
       console.error(err);
@@ -2977,11 +2982,16 @@ export default function AdminDashboard() {
                   <select
                     value={heroSettings.hero_model_url}
                     onChange={e => setHeroSettings({...heroSettings, hero_model_url: e.target.value})}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground animate-none"
                   >
                     <option value="">-- Select an STL File --</option>
                     {Array.from(new Set([
                       heroSettings.hero_model_url,
+                      '/models/helmet_holder.stl',
+                      '/models/beauty_blender_travel_case.stl',
+                      '/models/lipstick_case_keychain.stl',
+                      '/models/sample_cube.stl',
+                      ...r2StlFiles,
                       ...products.flatMap(p => [
                         ...(p.image && p.image.toLowerCase().endsWith('.stl') ? [p.image] : []),
                         ...(p.media ? p.media.filter(m => m.toLowerCase().endsWith('.stl')) : [])
