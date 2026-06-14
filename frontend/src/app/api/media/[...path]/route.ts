@@ -45,8 +45,8 @@ export async function GET(
     if (contentType) {
       headers.set('Content-Type', contentType);
     }
-    if (object.httpEtag) {
-      headers.set('etag', object.httpEtag);
+    if ((object as any).httpEtag) {
+      headers.set('etag', (object as any).httpEtag);
     }
 
     return new NextResponse(object.body, {
