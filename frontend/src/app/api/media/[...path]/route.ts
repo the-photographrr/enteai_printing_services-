@@ -3,6 +3,28 @@ import { getR2 } from '@/lib/cf';
 
 export const runtime = 'edge';
 
+/** R2ObjectBody type definitions are incomplete in next-on-pages builds */
+interface R2ObjectWithMeta {
+  body: ReadableStream;
+  httpMetadata?: { contentType?: string };
+  httpEtag?: string;
+}
+
+function inferContentType(key: string): string {
+  const ext = key.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'png': return 'image/png';
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'webp': return 'image/webp';
+    case 'gif': return 'image/gif';
+    case 'svg': return 'image/svg+xml';
+    case 'stl': return 'model/stl';
+    case 'pdf': return 'application/pdf';
+    default: return 'application/octet-stream';
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -24,34 +46,21 @@ export async function GET(
       return new NextResponse('Not found', { status: 404 });
     }
 
+    const r2obj = object as unknown as R2ObjectWithMeta;
     const headers = new Headers();
-    let contentType = (object as any).httpMetadata?.contentType;
+    let contentType = r2obj.httpMetadata?.contentType;
 
     if (!contentType || contentType === 'application/octet-stream') {
-      const ext = key.split('.').pop()?.toLowerCase();
-      switch (ext) {
-        case 'png': contentType = 'image/png'; break;
-        case 'jpg':
-        case 'jpeg': contentType = 'image/jpeg'; break;
-        case 'webp': contentType = 'image/webp'; break;
-        case 'gif': contentType = 'image/gif'; break;
-        case 'svg': contentType = 'image/svg+xml'; break;
-        case 'stl': contentType = 'model/stl'; break;
-        case 'pdf': contentType = 'application/pdf'; break;
-        default: contentType = 'application/octet-stream';
-      }
+      contentType = inferContentType(key);
     }
 
-    if (contentType) {
-      headers.set('Content-Type', contentType);
-    }
-    if ((object as any).httpEtag) {
-      headers.set('etag', (object as any).httpEtag);
+    headers.set('Content-Type', contentType);
+
+    if (r2obj.httpEtag) {
+      headers.set('etag', r2obj.httpEtag);
     }
 
-    return new NextResponse(object.body, {
-      headers,
-    });
+    return new NextResponse(object.body, { headers });
   } catch (err) {
     console.error('Error fetching media from R2', err);
     return new NextResponse('Internal Error', { status: 500 });

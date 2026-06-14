@@ -339,7 +339,7 @@ export default function AdminDashboard() {
         const errData = await res.json();
         setSettingsMessage(`Error: ${errData.detail || 'Failed to save'}`);
       }
-    } catch (err) {
+    } catch {
       setSettingsMessage('Network error.');
     } finally {
       setSavingSettings(false);

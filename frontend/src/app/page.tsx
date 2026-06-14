@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 
 const STLViewer = dynamic(() => import('@/components/STLViewer'), { ssr: false });
 import {
-  Check, AlertCircle, ChevronRight, ChevronLeft, ArrowRight, Heart, ArrowUpRight, X
+  Check, AlertCircle, X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -30,16 +30,6 @@ export default function Home() {
   const { user, apiFetch, refreshUser } = useApp();
   
   const catalogRef = useRef<HTMLDivElement>(null);
-
-  const scrollCatalog = (direction: 'left' | 'right') => {
-    if (catalogRef.current) {
-      const scrollAmount = catalogRef.current.clientWidth * 0.75;
-      catalogRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
 
   const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
 
