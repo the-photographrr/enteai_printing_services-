@@ -25,7 +25,7 @@ export async function GET(
     }
 
     const headers = new Headers();
-    let contentType = object.httpMetadata?.contentType;
+    let contentType = (object as any).httpMetadata?.contentType;
 
     if (!contentType || contentType === 'application/octet-stream') {
       const ext = key.split('.').pop()?.toLowerCase();
