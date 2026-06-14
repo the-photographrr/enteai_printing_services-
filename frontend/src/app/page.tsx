@@ -53,7 +53,8 @@ export default function Home() {
     hero_title2: 'ELEVATE YOUR SPACE.',
     hero_description: 'India\'s first wall mount engineered to transform your riding gear into a premium display piece. High-strength structural printing meets architectural minimalism.',
     hero_price: '299',
-    hero_model_url: '/models/helmet_holder.stl'
+    hero_model_url: '/models/helmet_holder.stl',
+    hero_model_color: '#ef4444'
   });
 
   const fetchSettings = useCallback(async () => {
@@ -194,13 +195,19 @@ export default function Home() {
             {/* Right Image */}
             <div className="relative flex justify-center items-center h-full min-h-[400px]">
               {/* Background soft glow mimicking the mockup */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-red-500/15 dark:bg-red-500/10 rounded-full blur-[80px] pointer-events-none" />
+              <div 
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full blur-[80px] pointer-events-none transition-colors duration-500" 
+                style={{
+                  backgroundColor: heroSettings.hero_model_color || '#ef4444',
+                  opacity: 0.12
+                }}
+              />
               
               <div className="relative z-10 w-full max-w-[400px] aspect-square transform hover:scale-105 transition-transform duration-700 ease-out cursor-grab active:cursor-grabbing">
                  <STLViewer 
                     fileUrl={heroSettings.hero_model_url}
                     height="100%"
-                    modelColor="#ef4444"
+                    modelColor={heroSettings.hero_model_color || "#ef4444"}
                     transparentBg={true}
                     showGrid={false}
                     autoRotate={true}

@@ -147,7 +147,7 @@ export default function AdminDashboard() {
 
   // Hero Settings
   const [heroSettings, setHeroSettings] = useState<Record<string, string>>({
-    hero_title1: '', hero_title2: '', hero_description: '', hero_price: '', hero_model_url: ''
+    hero_title1: '', hero_title2: '', hero_description: '', hero_price: '', hero_model_url: '', hero_model_color: ''
   });
 
   const [savingSettings, setSavingSettings] = useState(false);
@@ -2978,7 +2978,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold">Hero 3D Model (STL)</label>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold font-mono">Hero 3D Model (STL)</label>
                   <select
                     value={heroSettings.hero_model_url}
                     onChange={e => setHeroSettings({...heroSettings, hero_model_url: e.target.value})}
@@ -3000,6 +3000,24 @@ export default function AdminDashboard() {
                       <option key={idx} value={stlUrl as string}>{(stlUrl as string).split('/').pop()}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-text-secondary uppercase tracking-widest mb-2 font-bold font-mono">Hero 3D Model Color</label>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="color"
+                      value={heroSettings.hero_model_color || '#ef4444'}
+                      onChange={e => setHeroSettings({...heroSettings, hero_model_color: e.target.value})}
+                      className="w-10 h-10 rounded border border-border cursor-pointer p-0 bg-transparent"
+                    />
+                    <input 
+                      type="text"
+                      value={heroSettings.hero_model_color || ''}
+                      onChange={e => setHeroSettings({...heroSettings, hero_model_color: e.target.value})}
+                      placeholder="#ef4444"
+                      className="w-40 px-4 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:border-foreground font-mono"
+                    />
+                  </div>
                 </div>
                 <button
                   type="submit"
